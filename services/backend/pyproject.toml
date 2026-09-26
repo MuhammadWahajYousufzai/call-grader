@@ -1,0 +1,53 @@
+[project]
+name = "yousuf-rice-call-grader-backend"
+version = "1.0.0"
+description = "Yousuf Rice Call Grader & Coaching AI — backend"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "openai-agents==0.22.3",
+  "appwrite>=7.0",
+  "playwright>=1.44",
+  "httpx>=0.27",
+  "tenacity>=8.3",
+  "apscheduler>=3.10",
+  "python-dateutil>=2.9",
+  "phonenumbers>=8.13",
+  "pytz>=2024.1",
+  "structlog>=24.1",
+  "typer>=0.12",
+  "mutagen>=1.47",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.4",
+  "mypy>=1.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "DTZ", "SIM", "PLW"]
+ignore = ["BLE001", "S110", "S112", "S", "E501", "UP042", "SIM105"]
+# UP042 ignored: (str, Enum) mixins are deliberate (FastAPI/Pydantic friendly).
+# SIM105 ignored: best-effort json-parse guards in aggregation loops must never
+# crash reporting; suppress(Exception) would hide the intent less clearly.
+# E501 excluded (formatter owns layout); S/BLE relaxed: resilient automation
+# code uses broad-except + retry/continue by design.
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

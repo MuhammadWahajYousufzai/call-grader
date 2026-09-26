@@ -1,0 +1,1191 @@
+{
+  "organizationId": "6ab64644002371e0a830",
+  "projectId": "6ab64644002bdf0b5ed2",
+  "projectName": "My first project",
+  "settings": {
+    "services": {
+      "account": true,
+      "avatars": true,
+      "databases": true,
+      "locale": true,
+      "health": true,
+      "storage": true,
+      "teams": true,
+      "users": true,
+      "sites": true,
+      "functions": true,
+      "graphql": true,
+      "messaging": true
+    },
+    "protocols": {
+      "rest": true,
+      "graphql": true,
+      "websocket": true
+    },
+    "auth": {
+      "methods": {
+        "jwt": true,
+        "phone": true,
+        "invites": true,
+        "anonymous": true,
+        "email-otp": true,
+        "magic-url": true,
+        "email-password": true
+      },
+      "security": {
+        "duration": 31536000,
+        "limit": null,
+        "sessionsLimit": 10,
+        "passwordHistory": null,
+        "passwordDictionary": false,
+        "personalDataCheck": false,
+        "sessionAlerts": false,
+        "mockNumbers": []
+      }
+    }
+  },
+  "sites": [
+    {
+      "$id": "call-grader-web",
+      "name": "Call Grader",
+      "framework": "nextjs",
+      "adapter": "ssr",
+      "buildRuntime": "node-22",
+      "installCommand": "npm install -g pnpm@12.6.0 && pnpm install --frozen-lockfile",
+      "buildCommand": "pnpm build",
+      "outputDirectory": ".next",
+      "fallbackFile": "",
+      "buildSpecification": "s-2vcpu-4gb",
+      "runtimeSpecification": "s-1vcpu-1gb",
+      "deploymentRetention": 7,
+      "timeout": 30,
+      "logging": true,
+      "path": "apps/web",
+      "scopes": [
+        "sessions.write"
+      ],
+      "enabled": true
+    }
+  ],
+  "tablesDB": [
+    {
+      "$id": "call_grader",
+      "name": "Call Grader",
+      "enabled": true
+    }
+  ],
+  "tables": [
+    {
+      "$id": "agents",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "agents",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "jazz_identifier",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "jazz_extension",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_jazz_identifier",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "jazz_identifier"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "calls",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "calls",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "source",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "source_call_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "dedupe_key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "actual_started_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "reporting_date",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "direction",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "raw_jazz_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "canonical_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "caller_number",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "callee_number",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "raw_customer_number",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "normalized_customer_number",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "agent_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "agent_name_snapshot",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "jazz_agent_identifier",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "duration_seconds",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "recording_available",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "recording_storage_file_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "recording_sha256",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "recording_downloaded_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "recording_retention_due_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "recording_deleted_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "recording_delete_reason",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "pipeline_status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "retry_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "last_error_code",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "last_error_message",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 1024,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "transcription_model",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "grader_model",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "grading_prompt_version",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "rubric_version",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "raw_jazz_row",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_dedupe",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "dedupe_key"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_reporting_date",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "reporting_date"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_customer",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "normalized_customer_number"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_agent",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "agent_id"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_pipeline",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "pipeline_status"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_started",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "actual_started_at"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "transcript_segments",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "transcript_segments",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "call_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "sequence",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "speaker_raw",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "speaker_role",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "speaker_confidence",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308
+        },
+        {
+          "key": "uncertain",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "start_seconds",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308
+        },
+        {
+          "key": "end_seconds",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308
+        },
+        {
+          "key": "raw_text",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "roman_urdu_text",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_call",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "call_id"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_call_seq",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "call_id",
+            "sequence"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "call_grades",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "call_grades",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "call_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "overall_score",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308
+        },
+        {
+          "key": "call_type",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "primary_intent",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "grader_model",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "grading_prompt_version",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "rubric_version",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "result_json",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 65536,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "human_reviewed",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "human_score",
+          "type": "double",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -1.7976931348623157e+308,
+          "max": 1.7976931348623157e+308
+        },
+        {
+          "key": "human_review_notes",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "reviewed_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "reviewed_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_grade_call",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "call_id"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "processing_jobs",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "processing_jobs",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "job_type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "call_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "reporting_date",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "attempt_count",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "max_attempts",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "next_attempt_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "locked_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "lock_expires_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "last_error",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_job_status",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "status"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_job_call",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "call_id"
+          ],
+          "orders": []
+        },
+        {
+          "key": "idx_job_next",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "status",
+            "next_attempt_at"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "ingestion_runs",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "ingestion_runs",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "started_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "finished_at",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "window_start",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "window_end",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "calls_discovered",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "recordings_downloaded",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "error_code",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "error_message",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_run_started",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "started_at"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "daily_reports",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "daily_reports",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "reporting_date",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 16,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "metrics_json",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 65536,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "coaching_summary",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_report_date",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "reporting_date"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "business_rules",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "business_rules",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 16384,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "version",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": -9223372036854775808,
+          "max": 9223372036854775807
+        },
+        {
+          "key": "updated_by",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_rule_key",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "key"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "app_settings",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "app_settings",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "key",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8192,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "uniq_setting_key",
+          "type": "unique",
+          "status": "available",
+          "columns": [
+            "key"
+          ],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "audit_logs",
+      "$permissions": [],
+      "databaseId": "call_grader",
+      "name": "audit_logs",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "actor",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "action",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "target",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 256,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "metadata",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4096,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "idx_audit_action",
+          "type": "key",
+          "status": "available",
+          "columns": [
+            "action"
+          ],
+          "orders": []
+        }
+      ]
+    }
+  ],
+  "buckets": [
+    {
+      "$id": "call_recordings",
+      "$permissions": [
+        "read(\"users\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "fileSecurity": true,
+      "name": "call_recordings",
+      "enabled": true,
+      "maximumFileSize": 30000000,
+      "allowedFileExtensions": [],
+      "compression": "none",
+      "encryption": true,
+      "antivirus": true
+    }
+  ]
+}
