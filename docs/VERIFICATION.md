@@ -132,3 +132,21 @@ Backend:
 - `services/backend/app/config/settings.py`
 - `services/backend/app/main.py`
 - `services/backend/tests/test_jazz_integration.py`
+# Deployment helper verification — September 26
+
+Added `scripts/deploy_production.py` and the Appwrite runtime network Compose
+overlay. Backend tests now total **42 passing**, including production-target
+validation, refusal to overwrite secrets, malformed-config error redaction,
+ambiguous-network rejection, scoped Site variable updates, and new/existing
+recordings bucket access controls. Ruff passes.
+
+Compose configuration and the deployment dry-run were checked with temporary
+fake production values. The resolved configuration preserves special-character
+credentials, owner-only environment-file permissions, the loopback-only API
+host port, and the external runtime network alias. No real credentials were
+used by these checks.
+
+Production deployment, actual Site-runtime connectivity, and deployed Site
+login/audio checks remain pending. Docker is currently stopped locally. The
+helper performs readiness and network access checks when run on the VPS; these
+are not claimed as completed production verification here.

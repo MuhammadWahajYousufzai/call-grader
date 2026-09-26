@@ -48,7 +48,9 @@ account authorization uses the visitor's session, never an API key.
 
 Set these site variables:
 
-- `BACKEND_INTERNAL_URL`: the production HTTPS API URL reachable from Sites.
+- `BACKEND_INTERNAL_URL`: `http://call-grader-api:8000` when using the private
+  Appwrite runtime network on the same Docker host, or a reachable production
+  HTTPS API URL for a different host. See [production setup](PRODUCTION_SETUP.md).
 - `INTERNAL_API_TOKEN`: **secret**; must match the deployed FastAPI environment.
 - `APP_ORIGIN`: exact site origin, if the hosting proxy changes the request URL's origin.
 
@@ -66,7 +68,9 @@ created during verification. It is excluded from every source package/image.
    settings in the table above. Set the Site's API scopes to `sessions.write`.
 4. Configure `BACKEND_INTERNAL_URL`, secret `INTERNAL_API_TOKEN`, and
    `APP_ORIGIN` using the production values described above. The backend must
-   already be running and reachable from the Site runtime.
+   already be running and reachable from the Site runtime. The deployment helper
+   in [production setup](PRODUCTION_SETUP.md) configures and verifies the private
+   connection; it can also set these Site variables automatically.
 5. Deploy and wait for the build to reach `ready`. Verify the deployed URL:
    anonymous requests redirect to sign-in, non-admin accounts are denied, admin
    accounts can read reports, and removing the admin label denies subsequent

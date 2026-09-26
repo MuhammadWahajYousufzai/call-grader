@@ -96,7 +96,10 @@ Production Appwrite already runs on the VPS. The API, worker, and scheduler use
 endpoint/project/key, run bootstrap once (schema-only, no server upgrade), then
 `docker compose -f docker-compose.prod.yml up -d`.
 Services restart automatically (`restart: always`); Playwright state persists in a volume.
-See `docs/DEPLOYMENT.md`.
+For the guided deployment helper and a private connection from Sites to the API,
+see [production setup](docs/PRODUCTION_SETUP.md). On the same Docker host as
+Appwrite's executor, this connects through the runtime network without a
+separate public API domain or reverse proxy.
 
 ## 8. Troubleshooting
 

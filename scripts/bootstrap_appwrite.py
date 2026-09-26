@@ -22,8 +22,11 @@ def _client():
 
 
 def _columns_of(tables_svc, db_id: str, table_id: str) -> set[str]:
+    from appwrite.query import Query
+
     try:
-        res = tables_svc.list_columns(database_id=db_id, table_id=table_id)
+        res = tables_svc.list_columns(database_id=db_id, table_id=table_id,
+                                      queries=[Query.limit(100)])
         cols = res.get("columns", []) if isinstance(res, dict) else getattr(res, "columns", [])
         return {c.get("key") for c in cols if isinstance(c, dict)}
     except Exception:
@@ -107,11 +110,13 @@ def ensure_table(tables_svc, db_id: str, table_id: str, spec: dict) -> None:
 
 def ensure_bucket(storage_svc, bucket_id: str) -> None:
     from appwrite.exception import AppwriteException
-    from appwrite.permission import Permission
-    from appwrite.role import Role
 
     try:
-        storage_svc.get_bucket(bucket_id=bucket_id)
+        bucket = storage_svc.get_bucket(bucket_id=bucket_id)
+        if bucket.get("$permissions") or bucket.get("fileSecurity", True):
+            storage_svc.update_bucket(bucket_id=bucket_id, name=bucket.get("name", "call_recordings"),
+                                      permissions=[], file_security=False)
+            print(f"  bucket '{bucket_id}' restricted to server-side access")
         print(f"  bucket '{bucket_id}' exists")
         return
     except AppwriteException as e:
@@ -119,8 +124,10 @@ def ensure_bucket(storage_svc, bucket_id: str) -> None:
             raise
     storage_svc.create_bucket(
         bucket_id=bucket_id, name="call_recordings",
-        permissions=[Permission.read(Role.users()), Permission.write(Role.users())],
-        file_security=True, enabled=True, encryption=True, antivirus=True,
+        # Audio is served by the authenticated backend proxy. Project users
+        # must not bypass its admin-label check through the Storage API.
+        permissions=[],
+        file_security=False, enabled=True, encryption=True, antivirus=True,
     )
     print(f"  bucket '{bucket_id}' created (private)")
 

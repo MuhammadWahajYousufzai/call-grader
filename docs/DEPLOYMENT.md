@@ -6,17 +6,23 @@ Production Appwrite already runs on the VPS. Do NOT install another Appwrite, do
 
 The autonomous pipeline and server-side Appwrite `admin` label authorization are verified locally. Pages, server actions, and the audio proxy are protected. Publish the repository to GitHub, then connect it through the production Appwrite Console's **Sites** feature with root directory `apps/web`, Next.js, and SSR. The API, worker, and scheduler remain in the existing production Docker environment. See [Appwrite Sites deployment](APPWRITE_SITES.md) for build settings, server variables, and verification steps. Production hosting is configured in the Console; the checked-in CLI configuration describes the linked local development project.
 
-1. Copy repo, create `.env` with PRODUCTION values:
-   `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY` (prod key),
-   `OPENAI_API_KEY`, `JAZZ_UAN`, `JAZZ_PASSWORD`, `INTERNAL_API_TOKEN`,
-   `BACKEND_INTERNAL_URL=http://backend-api:8000`, `NEXT_PUBLIC_*` → public URL values.
-2. Build the backend images with `docker compose -f docker-compose.prod.yml build backend-api backend-worker`. Ensure `APPWRITE_ENDPOINT` is reachable from Docker containers, then run
-   `docker compose -f docker-compose.prod.yml run --rm backend-api python /srv/scripts/bootstrap_appwrite.py`
-   (schema-only, idempotent, data-safe).
-3. `docker compose -f docker-compose.prod.yml up -d --no-build`.
-4. Verify `GET /health/ready`, open web, check `/system`. Worker and scheduler
-   use the Playwright image; their separate browser profiles share the state volume.
-5. Expose the API through the existing HTTPS reverse proxy so Appwrite Sites can reach it. Require the internal API token; keep secrets server-side. Deploy Next.js using the Sites instructions above. Nightly Appwrite backup uses existing VPS tooling.
+Follow [production setup](PRODUCTION_SETUP.md) for the complete sequence:
+
+1. Create the production Appwrite project and its server key.
+2. Clone the repository on the same Docker host as Appwrite's executor.
+3. Run `python3 scripts/deploy_production.py configure` to create a private
+   `.env.production` file using production values and hidden credential input.
+4. Run `python3 scripts/deploy_production.py deploy`. It builds the backend
+   images, prepares the schema and private bucket, connects the API to the
+   existing runtime network, starts the services, and checks backend access.
+5. Connect GitHub in the production Appwrite Site and configure its three server
+   variables. `configure-site` can set these through the authenticated CLI.
+6. Redeploy the Site and verify admin login, System status, and audio.
+
+This path uses `http://call-grader-api:8000` privately from the Site runtime and
+does not require a public API domain. For a Site on another Docker host, expose
+the API through the existing HTTPS reverse proxy instead and set the Site's
+`BACKEND_INTERNAL_URL` to that URL. Nightly Appwrite backup uses existing VPS tooling.
 
 # Operations
 

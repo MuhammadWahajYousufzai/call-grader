@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.backend
-    env_file: [.env]
+    env_file: ["${CALL_GRADER_ENV_FILE:-.env}"]
     environment:
       SERVICE_ROLE: api
       APP_ENV: production
@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.worker
-    env_file: [.env]
+    env_file: ["${CALL_GRADER_ENV_FILE:-.env}"]
     environment:
       SERVICE_ROLE: worker
       APP_ENV: production
@@ -34,7 +34,7 @@ services:
 
   backend-scheduler:
     image: yousuf-rice-worker:${APP_VERSION:-latest}
-    env_file: [.env]
+    env_file: ["${CALL_GRADER_ENV_FILE:-.env}"]
     environment:
       SERVICE_ROLE: scheduler
       APP_ENV: production
@@ -53,7 +53,7 @@ services:
       args:
         NEXT_PUBLIC_APPWRITE_ENDPOINT: ${NEXT_PUBLIC_APPWRITE_ENDPOINT}
         NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${NEXT_PUBLIC_APPWRITE_PROJECT_ID}
-    env_file: [.env]
+    env_file: ["${CALL_GRADER_ENV_FILE:-.env}"]
     environment:
       APP_ENV: production
       BACKEND_INTERNAL_URL: http://backend-api:8000
