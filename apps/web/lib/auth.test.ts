@@ -109,6 +109,13 @@ describe("sign-in and sign-out", () => {
     const forged = new Request("http://0.0.0.0:3000/api/auth/login", { headers: { host: "dashboard.example", origin: "https://other.example", "x-forwarded-host": "other.example" } });
     expect(() => requireSameOrigin(forged)).toThrow();
   });
+  it("accepts local Appwrite Site origins and rejects HTTP production origins", () => {
+    vi.stubEnv("APP_ORIGIN", "");
+    const local = new Request("http://site.sites.localhost/api/auth/login", { headers: { host: "site.sites.localhost", origin: "http://site.sites.localhost" } });
+    expect(() => requireSameOrigin(local)).not.toThrow();
+    const insecure = new Request("http://dashboard.example/api/auth/login", { headers: { host: "dashboard.example", origin: "http://dashboard.example" } });
+    expect(() => requireSameOrigin(insecure)).toThrow();
+  });
   it("fails closed without an authentication key", async () => {
     vi.stubEnv("APPWRITE_AUTH_API_KEY", "");
     expect((await login(request())).status).toBe(503);

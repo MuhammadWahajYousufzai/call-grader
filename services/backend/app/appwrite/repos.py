@@ -157,8 +157,15 @@ def save_segments(call_id: str, segments: list[dict]) -> None:
 
 
 def get_segments(call_id: str) -> list[dict]:
-    rows = list_docs("transcript_segments", [Query.equal("call_id", call_id), Query.order_asc("sequence")], limit=500)
-    return sorted(rows, key=lambda r: r.get("sequence", 0))
+    rows = []
+    while True:
+        queries = [Query.equal("call_id", call_id), Query.order_asc("sequence")]
+        if rows:
+            queries.append(Query.cursor_after(rows[-1]["$id"]))
+        batch = list_docs("transcript_segments", queries, limit=100)
+        rows.extend(batch)
+        if len(batch) < 100:
+            return rows
 
 
 def save_grade(grade: dict) -> dict:

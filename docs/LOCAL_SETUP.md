@@ -1,5 +1,14 @@
 # Local setup
 
+## Appwrite Functions + Sites
+
+Use the [local Functions deployment](APPWRITE_FUNCTIONS.md#run-the-same-deployment-locally-first)
+to run the production architecture on the existing local Appwrite. The helper
+deploys the Functions and Site and enables their schedules after verification.
+The old Docker worker/scheduler are stopped to prevent duplicate processing.
+
+## Docker/developer alternative
+
 See README steps 1–5. Checklist:
 
 1. `docker ps` shows `appwrite` healthy on `:80` (repo at `/Desktop/appwrite/appwrite`).

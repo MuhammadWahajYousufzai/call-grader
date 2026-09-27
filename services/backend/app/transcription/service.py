@@ -16,7 +16,7 @@ from app.config.settings import get_settings
 
 def _client() -> OpenAI:
     s = get_settings()
-    return OpenAI(api_key=s.OPENAI_API_KEY, timeout=s.OPENAI_TIMEOUT_SECONDS)
+    return OpenAI(api_key=s.OPENAI_API_KEY, timeout=s.OPENAI_TIMEOUT_SECONDS, max_retries=s.OPENAI_MAX_RETRIES)
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, max=60),

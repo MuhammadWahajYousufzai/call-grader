@@ -37,6 +37,7 @@ class JazzClient:
         self._pw = sync_playwright().start()
         self._ctx = self._pw.chromium.launch_persistent_context(
             str(self.state_dir), headless=not self.headed, accept_downloads=True,
+            executable_path=get_settings().JAZZ_CHROMIUM_EXECUTABLE or None,
             args=["--disable-dev-shm-usage"],
         )
         return self

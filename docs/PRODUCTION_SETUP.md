@@ -1,3 +1,6 @@
+> Optional Docker fallback. The selected production path is
+> [Appwrite Functions + Sites](APPWRITE_FUNCTIONS.md).
+
 # Production setup beside your existing Appwrite
 
 ## What runs where

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     JAZZ_SYNC_OVERLAP_MINUTES: int = 30
     JAZZ_PAGE_TIMEOUT_MS: int = 30000
     JAZZ_MAX_PAGES: int = 200
+    JAZZ_CHROMIUM_EXECUTABLE: str = ""
 
     JAZZ_SYNC_CRON: str = "1 18 * * *"
     BUSINESS_DAY_START: str = "09:30"

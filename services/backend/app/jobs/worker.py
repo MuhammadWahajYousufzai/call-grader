@@ -6,6 +6,7 @@ Crash-safe: each phase checkpoints in Appwrite; failures resume at failed step.
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import time
 import uuid
@@ -95,7 +96,8 @@ def do_download(call: dict) -> None:
                     if sha256(bytes(remote)).hexdigest() != info["sha256"]:
                         raise RuntimeError("Existing Appwrite recording differs from Jazz audio") from None
                     up = {"$id": call_id}
-                fid = (up.get("$id") or up.get("id")) if isinstance(up, dict) else getattr(up, "id", "")
+                up = repos._as_dict(up)
+                fid = up.get("$id") or up.get("id", "")
                 if not fid:
                     raise RuntimeError("Appwrite upload returned no file ID")
                 from datetime import timedelta
@@ -319,8 +321,12 @@ def recover_incomplete_calls() -> int:
             phase = STATE_PHASE.get(status)
             if phase is None:
                 continue
-            if phase == 0 and not call.get("recording_available"):
-                continue
+            if phase == 0:
+                canonical = call.get("canonical_status", "")
+                if canonical in ("NO_ANSWER", "BUSY") or not call.get("recording_available"):
+                    terminal = "NO_RECORDING" if canonical == "ANSWERED" else "NOT_ELIGIBLE"
+                    repos.update_call(call["$id"], {"pipeline_status": terminal})
+                    continue
             jobs = repos.list_docs("processing_jobs", [Query.equal("call_id", call["$id"])], limit=100)
             kind = JOB_FOR_PHASE[phase]
             if any(j.get("job_type") == kind and j.get("status") in ("QUEUED", "LEASED", "FAILED")
@@ -366,6 +372,10 @@ def process_one(worker_id: str) -> bool:
         ):
             complete_job(job["$id"])
             return True
+        if os.environ.get("APPWRITE_FUNCTION_ID"):
+            from app.functions.phases import romanize_batch, transcribe_chunk
+
+            handler = {"TRANSCRIBE": transcribe_chunk, "ROMANIZE": romanize_batch}.get(jtype, handler)
         handler(call)
         complete_job(job["$id"])
         # Release the lease before retention checks; active jobs protect audio.
@@ -375,6 +385,13 @@ def process_one(worker_id: str) -> bool:
             except Exception:
                 log.warning("Expired audio cleanup deferred to scheduler")
     except Exception as e:
+        from app.functions.phases import ContinueJob
+
+        if isinstance(e, ContinueJob):
+            repos.update_doc("processing_jobs", job["$id"], {
+                "status": "QUEUED", "locked_by": "", "next_attempt_at": _utcnow(),
+            })
+            return True
         msg = str(e)
         retryable = not any(k in msg for k in ("AUDIO_INVALID", "schema", "unknown job"))
         if call_id:

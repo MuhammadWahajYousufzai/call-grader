@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -313,6 +314,16 @@ def admin_sync(date: str | None = None, x_actor: str | None = Header(default="ad
     from app.ingestion.runner import sync_date, sync_window
 
     _audit_admin(x_actor, "manual_jazz_sync", date or "auto")
+    if os.environ.get("APPWRITE_FUNCTION_ID"):
+        from app.functions.pipeline import dispatch
+
+        if date:
+            try:
+                datetime.fromisoformat(date)
+            except ValueError:
+                raise HTTPException(400, "Invalid date") from None
+        execution = dispatch(os.environ["APPWRITE_SYNC_FUNCTION_ID"], {"date": date} if date else {})
+        return {"status": "QUEUED", "execution_id": execution["$id"]}
     return sync_date(date) if date else {"runs": sync_window()}
 
 
@@ -329,7 +340,11 @@ def admin_retry(job_id: str, x_actor: str | None = Header(default="admin"), auth
 
 @app.post("/api/admin/calls/{call_id}/retranscribe")
 def admin_retranscribe(call_id: str, x_actor: str | None = Header(default="admin"), authed: str = Depends(require_internal)) -> dict:
-    repos.enqueue_job("TRANSCRIBE", call_id=call_id)
+    call = repos.get_doc("calls", call_id)
+    if not call:
+        raise HTTPException(404, "call not found")
+    repos.set_setting("transcription_progress_" + call_id, "")
+    repos.enqueue_job("TRANSCRIBE", call_id=call_id, reporting_date=call.get("reporting_date", ""))
     repos.update_call(call_id, {"pipeline_status": "TRANSCRIPTION_PENDING"})
     _audit_admin(x_actor, "manual_retranscribe", call_id)
     return {"ok": True}
@@ -347,6 +362,10 @@ def admin_regrade(call_id: str, x_actor: str | None = Header(default="admin"), a
 
 @app.post("/api/admin/reports/{reporting_date}/regenerate")
 def admin_regen(reporting_date: str, x_actor: str | None = Header(default="admin"), authed: str = Depends(require_internal)) -> dict:
+    if os.environ.get("APPWRITE_FUNCTION_ID"):
+        _audit_admin(x_actor, "regenerate_report", reporting_date)
+        job = repos.ensure_report_job(reporting_date)
+        return {"status": "QUEUED", "job_id": job["$id"]}
     from app.ai.workflows import daily_coaching_summary
 
     s = get_settings()

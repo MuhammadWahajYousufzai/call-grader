@@ -146,7 +146,75 @@ credentials, owner-only environment-file permissions, the loopback-only API
 host port, and the external runtime network alias. No real credentials were
 used by these checks.
 
-Production deployment, actual Site-runtime connectivity, and deployed Site
-login/audio checks remain pending. Docker is currently stopped locally. The
+At that checkpoint, production deployment, actual Site-runtime connectivity, and deployed Site
+login/audio checks remained pending. Docker was stopped locally. The
 helper performs readiness and network access checks when run on the VPS; these
 are not claimed as completed production verification here.
+
+## Local Appwrite Functions + Site — September 27
+
+The six Python Functions and Next.js SSR Site are deployed in the existing local
+Appwrite project. The old Docker application worker/scheduler were stopped; the
+Appwrite installation and database/storage volumes were preserved. Production
+has not been deployed; its project will be created later.
+
+- Worker and discovery executions passed imports, Chromium DOM access, FFmpeg,
+  and ffprobe checks inside the deployed Alpine Python runtime. The lightweight
+  watchdog successfully executed discovery through its private SDK permission.
+- Bootstrap completed against the existing private database and bucket. API
+  readiness returned HTTP 200 from the deployed Function.
+- A real recording was automatically downloaded from Jazz, validated, and
+  uploaded privately by the deployed worker. A repeated September 25 discovery
+  authenticated automatically, skipped all 58 existing calls, discovered zero
+  duplicates, and queued zero new downloads.
+- Eight concurrent attempts to take an expired transactional worker lease
+  produced exactly one winner. Verification rows and recordings were removed.
+- Next.js compiled, passed TypeScript, and built successfully in Appwrite Sites.
+  Anonymous dashboard access redirected to login; an account without `admin`
+  was denied. A temporary admin signed in and loaded the dashboard, System, and
+  completed September 25 report without backend error placeholders.
+- The deployed Site served a private recording with an audio MIME type. Removing
+  the account's server-side admin label immediately made the next audio request
+  return HTTP 403. The temporary account was deleted after verification.
+- Actual remote settings were checked: all Function execution permissions are
+  empty; role-specific scopes match the manifest; bootstrap has only
+  `databases.read` after provisioning; the Site has `sessions.write`,
+  `execution.write`, and `files.read`.
+- Appwrite schedules are enabled: discovery at 18:01 Karachi, hourly catch-up,
+  worker every minute, and retention at 02:30 Karachi. After-18:00 calls remain
+  assigned to the following day's batch.
+- Backend: **58 tests pass**, Ruff passes. Frontend: **18 tests pass**. The staged
+  files were scanned against the existing credentials before Git publication.
+
+Local Site: `http://6ab7eac1002d642d2f37.sites.localhost`. Chromium resolves
+`*.localhost` directly; command-line HTTP clients on this Mac may need an
+explicit mapping to `127.0.0.1` while retaining the original Host header.
+
+The local disk-full incident also damaged a cached deployment archive. Its gzip
+checksum failed, while the original Appwrite output passed checksum and tar
+extraction checks. The local cache/runtime was replaced and native checks then
+passed. The deployment helper supplies complete metadata during CLI updates to
+preserve scopes, and restores Site scopes after pushing code. The cron adapters
+also accept Appwrite's empty scheduled request body as an empty JSON object;
+non-object or malformed manual input is rejected.
+
+All four cron handlers passed real empty-body executions after redeployment. The
+platform's next scheduled worker executions returned HTTP 200. During the rolling
+deployment an existing worker lease remained active, so the new worker correctly
+returned `BUSY` until its 20-minute lease expiry; the minute schedule retries this
+automatically. Current deployments and one successful rollback per Function were
+kept while obsolete local build artifacts were cleaned up.
+
+### Remaining external blocker
+
+A fresh Function transcription reached OpenAI and received HTTP 429 with
+`insufficient_quota` / `credit_balance_exhausted`. The same account needs credits
+before new transcription, Roman Urdu conversion, grading, and coaching can
+complete. No substitute AI results were created. Durable jobs remain queued and
+retry automatically; fresh end-to-end AI completion inside Functions is therefore
+not claimed.
+
+At the September 27 verification checkpoint, 144 original September 25–26 call
+rows remained, with zero verification call rows, 23 queued jobs, and zero failed
+jobs. These queue counts are a timestamped snapshot, not a claim that processing
+is complete. The completed September 25 report and its 17 grades remain intact.

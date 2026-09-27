@@ -12,7 +12,7 @@ export class AuthError extends Error {
 }
 
 function client() {
-  const endpoint = process.env.APPWRITE_SITE_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+  const endpoint = process.env.APPWRITE_ENDPOINT || process.env.APPWRITE_SITE_API_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
   const project = process.env.APPWRITE_SITE_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
   if (!endpoint || !project) throw new AuthError(503, "Sign-in is not configured.");
   return new Client().setEndpoint(endpoint).setProject(project);
@@ -70,7 +70,7 @@ export function requireSameOrigin(request: Request) {
   let parsed: URL;
   try { parsed = new URL(origin); } catch { throw new AuthError(403, "Request origin is not allowed."); }
   const host = request.headers.get("host") || new URL(request.url).host;
-  const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname) || parsed.hostname.endsWith(".localhost");
   if (parsed.host !== host || (!local && process.env.NODE_ENV === "production" && parsed.protocol !== "https:")) {
     throw new AuthError(403, "Request origin is not allowed.");
   }

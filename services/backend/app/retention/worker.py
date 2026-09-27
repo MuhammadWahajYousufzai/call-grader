@@ -22,7 +22,7 @@ def cleanup_expired_audio(dry_run: bool = False) -> dict:
     s = get_settings()
     now = datetime.now(UTC).isoformat()
     rows = repos.list_docs("calls", [
-        Query.is_not_null("recording_storage_file_id") if hasattr(Query, "is_not_null") else Query.not_equal("recording_storage_file_id", ""),
+        Query.not_equal("recording_storage_file_id", ""),
         Query.less_than_equal("recording_retention_due_at", now),
         Query.limit(100),
     ], limit=100)

@@ -72,6 +72,7 @@ def _run_agent(instructions: str, model: str, output_type, user_content: str):
             Agent,
             AgentOutputSchema,
             Runner,
+            set_default_openai_client,
             set_default_openai_key,
             set_tracing_disabled,
         )
@@ -81,7 +82,13 @@ def _run_agent(instructions: str, model: str, output_type, user_content: str):
 
     os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
     set_tracing_disabled(True)
-    set_default_openai_key(get_settings().OPENAI_API_KEY)
+    from openai import AsyncOpenAI
+
+    settings = get_settings()
+    set_default_openai_key(settings.OPENAI_API_KEY)
+    set_default_openai_client(AsyncOpenAI(api_key=settings.OPENAI_API_KEY,
+                                        timeout=settings.OPENAI_TIMEOUT_SECONDS,
+                                        max_retries=settings.OPENAI_MAX_RETRIES))
     schema = AgentOutputSchema(output_type, strict_json_schema=False) if output_type is GradeOutput else output_type
     agent = Agent(name="yousuf-worker", instructions=instructions, model=model, output_type=schema)
     result = Runner.run_sync(agent, input=user_content)
@@ -190,10 +197,21 @@ def grade_call(segments: list[dict], call_meta: dict, business_rules: str) -> di
 
 def daily_coaching_summary(metrics: dict, highlights: list[dict]) -> str:
     s = get_settings()
-    from agents import Agent, Runner, set_default_openai_key, set_tracing_disabled
+    from agents import (
+        Agent,
+        Runner,
+        set_default_openai_client,
+        set_default_openai_key,
+        set_tracing_disabled,
+    )
 
     set_tracing_disabled(True)
     set_default_openai_key(s.OPENAI_API_KEY)
+    from openai import AsyncOpenAI
+
+    set_default_openai_client(AsyncOpenAI(api_key=s.OPENAI_API_KEY,
+                                        timeout=s.OPENAI_TIMEOUT_SECONDS,
+                                        max_retries=s.OPENAI_MAX_RETRIES))
     agent = Agent(name="daily-coach", instructions=DAILY_SUMMARY_SYSTEM, model=s.OPENAI_GRADING_MODEL)
     content = ("PRE-COMPUTED METRICS (authoritative, do not recalculate):\n"
                + json.dumps(metrics)[:12000]

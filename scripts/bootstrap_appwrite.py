@@ -9,7 +9,11 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services", "backend"))
 
-from app.appwrite.schema import DEFAULT_BUSINESS_RULES, DEFAULT_SETTINGS, TABLES  # noqa: E402
+from app.appwrite.schema import (
+    DEFAULT_BUSINESS_RULES,
+    DEFAULT_SETTINGS,
+    TABLES,
+)
 
 
 def _client():
@@ -21,13 +25,17 @@ def _client():
     return Client().set_endpoint(endpoint).set_project(project).set_key(key)
 
 
+def _dictionary(response):
+    return response if isinstance(response, dict) else response.to_dict()
+
+
 def _columns_of(tables_svc, db_id: str, table_id: str) -> set[str]:
     from appwrite.query import Query
 
     try:
         res = tables_svc.list_columns(database_id=db_id, table_id=table_id,
                                       queries=[Query.limit(100)])
-        cols = res.get("columns", []) if isinstance(res, dict) else getattr(res, "columns", [])
+        cols = _dictionary(res).get("columns", [])
         return {c.get("key") for c in cols if isinstance(c, dict)}
     except Exception:
         return set()
@@ -36,7 +44,7 @@ def _columns_of(tables_svc, db_id: str, table_id: str) -> set[str]:
 def _indexes_of(tables_svc, db_id: str, table_id: str) -> set[str]:
     try:
         res = tables_svc.list_indexes(database_id=db_id, table_id=table_id)
-        idxs = res.get("indexes", []) if isinstance(res, dict) else getattr(res, "indexes", [])
+        idxs = _dictionary(res).get("indexes", [])
         return {i.get("key") for i in idxs if isinstance(i, dict)}
     except Exception:
         return set()
@@ -112,7 +120,7 @@ def ensure_bucket(storage_svc, bucket_id: str) -> None:
     from appwrite.exception import AppwriteException
 
     try:
-        bucket = storage_svc.get_bucket(bucket_id=bucket_id)
+        bucket = _dictionary(storage_svc.get_bucket(bucket_id=bucket_id))
         if bucket.get("$permissions") or bucket.get("fileSecurity", True):
             storage_svc.update_bucket(bucket_id=bucket_id, name=bucket.get("name", "call_recordings"),
                                       permissions=[], file_security=False)
@@ -136,6 +144,8 @@ def seed(tables_svc, db_id: str) -> None:
     from appwrite.id import ID
     from appwrite.query import Query
 
+    failures = []
+
     def find(table: str, field: str, value: str) -> list:
         res = tables_svc.list_rows(database_id=db_id, table_id=table,
                                    queries=[Query.equal(field, value), Query.limit(2)])
@@ -151,6 +161,7 @@ def seed(tables_svc, db_id: str) -> None:
                 print(f"  seeded agent {name}")
         except Exception as e:
             print(f"  ! seed agent {name}: {e}")
+            failures.append(f"agent {name}")
     for rule in DEFAULT_BUSINESS_RULES:
         try:
             if not find("business_rules", "key", rule["key"]):
@@ -159,6 +170,7 @@ def seed(tables_svc, db_id: str) -> None:
                 print(f"  seeded rule {rule['key']}")
         except Exception as e:
             print(f"  ! seed rule {rule['key']}: {e}")
+            failures.append(f"rule {rule['key']}")
     for s in DEFAULT_SETTINGS:
         try:
             if not find("app_settings", "key", s["key"]):
@@ -166,9 +178,12 @@ def seed(tables_svc, db_id: str) -> None:
                 print(f"  seeded setting {s['key']}")
         except Exception as e:
             print(f"  ! seed setting {s['key']}: {e}")
+            failures.append(f"setting {s['key']}")
+    if failures:
+        raise RuntimeError("Bootstrap seed failed: " + ", ".join(failures))
 
 
-def main() -> None:
+def main(function_execution: bool = False) -> None:
     env_path = Path(__file__).resolve().parents[1] / ".env"
     try:
         from dotenv import load_dotenv  # optional
@@ -186,12 +201,13 @@ def main() -> None:
                     os.environ.setdefault(k.strip(), v.strip())
     except FileNotFoundError:
         pass
-    for var in ("APPWRITE_PROJECT_ID", "APPWRITE_API_KEY"):
+    for var in (() if function_execution else ("APPWRITE_PROJECT_ID", "APPWRITE_API_KEY")):
         if not os.environ.get(var):
             raise SystemExit(f"Missing {var} — copy .env.example to .env and fill Appwrite values")
     db_id = os.environ.get("APPWRITE_DATABASE_ID", "call_grader")
     bucket_id = os.environ.get("APPWRITE_RECORDINGS_BUCKET_ID", "call_recordings")
     client = _client()
+    from appwrite.query import Query
     from appwrite.services.storage import Storage
     from appwrite.services.tables_db import TablesDB
 
@@ -210,6 +226,23 @@ def main() -> None:
     for table_id, spec in TABLES.items():
         ensure_table(tables_svc, db_id, table_id, spec)
     ensure_bucket(storage_svc, bucket_id)
+    # Fail deployment if provisioning did not finish. Column/index creation is
+    # asynchronous, so wait for availability rather than trusting create calls.
+    for attempt in range(30):
+        ready = True
+        for table_id, spec in TABLES.items():
+            columns = _dictionary(tables_svc.list_columns(database_id=db_id, table_id=table_id,
+                                  queries=[Query.limit(100)]))["columns"]
+            available = {c["key"] for c in columns if c.get("status") == "available"}
+            indexes = _dictionary(tables_svc.list_indexes(database_id=db_id, table_id=table_id))["indexes"]
+            available_indexes = {i["key"] for i in indexes if i.get("status") == "available"}
+            ready = ready and all(a["key"] in available for a in spec["attributes"])
+            ready = ready and all(i["key"] in available_indexes for i in spec.get("indexes", []))
+        if ready:
+            break
+        time.sleep(2)
+    else:
+        raise RuntimeError("Database columns or indexes are missing or unavailable; inspect Appwrite provisioning logs")
     seed(tables_svc, db_id)
     print("Bootstrap complete — re-running is safe (no data destroyed).")
 

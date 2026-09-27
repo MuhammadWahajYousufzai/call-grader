@@ -1,9 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
-
 from app import main
+from fastapi import HTTPException
 
 
 def test_internal_api_fails_closed_without_configured_token(monkeypatch):

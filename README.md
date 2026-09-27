@@ -18,6 +18,22 @@ AI is used only for transcription/understanding/grading — never for clicking a
 - Python 3.12+ with `uv`, Node 22+ with `pnpm`, `ffmpeg`
 - OpenAI API key, Jazz UAN/password, local Appwrite project + API key
 
+## Run Functions + Sites locally
+
+With the Appwrite CLI logged in and this development project linked, use:
+
+```sh
+uv run --project services/backend python scripts/deploy_appwrite.py configure --local
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local
+```
+
+This uses the existing private `.env`, deploys Functions and the Next.js Site,
+verifies native tools, and enables Appwrite schedules. Open the generated Site
+URL under `sites.localhost`. Give your project account the exact `admin` label.
+See [Functions setup](docs/APPWRITE_FUNCTIONS.md) for runtime prerequisites.
+
+The following numbered setup steps describe the Docker/developer alternative.
+
 ## 1. Local Appwrite 2.3 setup
 
 Appwrite is already running at `http://localhost/v1` (see `docker ps` in `/Desktop/appwrite/appwrite`).
@@ -83,23 +99,22 @@ cd services/backend && uv run pytest -q
 pnpm --dir apps/web test
 ```
 
-## 7. Production deployment overview
+## 7. Production deployment — Appwrite Functions + Sites
 
-Push this repository to GitHub, then connect it in the production Appwrite
-Console's **Sites** feature. Set the Site root directory to `apps/web`, select
-Next.js with SSR, and configure the server variables described in
-[Sites deployment](docs/APPWRITE_SITES.md). GitHub supplies the frontend source;
-production values are configured in the Console.
+Use the existing production Appwrite project for the backend Functions, native
+schedules, database, recordings, account authentication, and Next.js Site.
+See [Functions + Sites setup](docs/APPWRITE_FUNCTIONS.md) for the automatic
+Appwrite CLI deployment helper and GitHub Console settings.
 
-Production Appwrite already runs on the VPS. The API, worker, and scheduler use
-`docker-compose.prod.yml`. Point the VPS `.env` at the production Appwrite
-endpoint/project/key, run bootstrap once (schema-only, no server upgrade), then
-`docker compose -f docker-compose.prod.yml up -d`.
-Services restart automatically (`restart: always`); Playwright state persists in a volume.
-For the guided deployment helper and a private connection from Sites to the API,
-see [production setup](docs/PRODUCTION_SETUP.md). On the same Docker host as
-Appwrite's executor, this connects through the runtime network without a
-separate public API domain or reverse proxy.
+```sh
+python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
+python3 scripts/deploy_appwrite.py deploy
+```
+
+Discovery starts daily at 18:01 Karachi; Appwrite cron executions recover missed
+runs and queued processing. The Site calls the private API Function through the
+Server SDK. No additional backend reverse proxy is needed. The Docker helpers
+remain available for local development and an optional deployment fallback.
 
 ## 8. Troubleshooting
 

@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-
 from app.domain.helpers import (
     backoff_delay_seconds,
     dedupe_key,

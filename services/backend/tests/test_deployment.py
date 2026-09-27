@@ -23,6 +23,14 @@ deploy = load_script("deploy_production")
 bootstrap = load_script("bootstrap_appwrite")
 
 
+def test_bootstrap_fails_when_required_seed_rows_cannot_be_created():
+    tables = Mock()
+    tables.list_rows.return_value = {"rows": []}
+    tables.create_row.side_effect = RuntimeError("columns unavailable")
+    with pytest.raises(RuntimeError, match="Bootstrap seed failed"):
+        bootstrap.seed(tables, "database")
+
+
 @pytest.mark.parametrize("endpoint", ["http://localhost/v1", "https://example.com", "https://user:password@example.com/v1"])
 def test_production_target_rejects_local_or_ambiguous_endpoints(endpoint):
     with pytest.raises(deploy.DeployError):

@@ -19,14 +19,13 @@ audio proxy are protected. Backend calls use a server-only internal token and
 the verified account ID for audit attribution. The backend rejects requests when
 that token is missing or incorrect, and fails closed if it is not configured.
 
-## Hosting split
+## Hosting in one Appwrite project
 
-- Existing production Docker: FastAPI API, worker, and scheduler.
-- Existing production Appwrite: account authentication, database, and recordings.
-- **Appwrite Sites: Next.js frontend, SSR mode, framework `nextjs`, runtime `node-22`.**
+- **Appwrite Functions:** private API, discovery, queued processing, retention.
+- **Appwrite:** authentication, database, private recording storage.
+- **Appwrite Sites:** Next.js frontend, SSR mode, framework `nextjs`, runtime `node-22`.
 
-The production Compose web container has the optional `local-preview` profile.
-It is not part of the default production deployment when Sites hosts the frontend.
+Use [Functions deployment](APPWRITE_FUNCTIONS.md) for the complete automated setup.
 
 ## Sites configuration
 
@@ -39,20 +38,23 @@ It is not part of the default production deployment when Sites hosts the fronten
 | Install command | `npm install -g pnpm@12.6.0 && pnpm install --frozen-lockfile` |
 | Build command | `pnpm build` |
 | Output directory | `.next` |
-| Site scopes | `sessions.write` only |
+| Site scopes | `sessions.write`, `execution.write`, `files.read` |
 
 Appwrite Sites injects `APPWRITE_SITE_API_ENDPOINT` and
 `APPWRITE_SITE_PROJECT_ID`. The login handler uses the ephemeral `x-appwrite-key`
-SSR request header when running in Sites. That key only needs `sessions.write`;
+SSR request header when running in Sites. The key uses the scopes above;
 account authorization uses the visitor's session, never an API key.
 
 Set these site variables:
 
-- `BACKEND_INTERNAL_URL`: `http://call-grader-api:8000` when using the private
-  Appwrite runtime network on the same Docker host, or a reachable production
-  HTTPS API URL for a different host. See [production setup](PRODUCTION_SETUP.md).
-- `INTERNAL_API_TOKEN`: **secret**; must match the deployed FastAPI environment.
-- `APP_ORIGIN`: exact site origin, if the hosting proxy changes the request URL's origin.
+- `APPWRITE_BACKEND_FUNCTION_ID`: `call-grader-api`.
+- `INTERNAL_API_TOKEN`: **secret**; must match the API Function variable.
+- `APPWRITE_RECORDINGS_BUCKET_ID`: `call_recordings` (the default).
+- `APPWRITE_ENDPOINT` and `APPWRITE_PROJECT_ID`: optional server endpoint overrides; the helper sets them to the selected target.
+- `APP_ORIGIN`: optional exact site origin if the proxy changes the request host.
+
+The Site invokes the API Function privately through the Server SDK. Its protected
+audio route reads the recording directly from Storage after checking admin access.
 
 For local Docker or a host without Sites' ephemeral request key, configure
 `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, and the **server-only**
@@ -61,16 +63,16 @@ created during verification. It is excluded from every source package/image.
 
 ## GitHub deployment through the production Console
 
-1. Create the GitHub repository and push the local `main` branch.
+1. Use the GitHub repository `MuhammadWahajYousufzai/call-grader`, branch `main`.
 2. In the production Appwrite project, open **Sites**, create a Site, and connect
    the GitHub repository. Choose `main` as the production branch.
 3. Set the repository root directory to `apps/web`. Apply the Next.js SSR build
-   settings in the table above. Set the Site's API scopes to `sessions.write`.
-4. Configure `BACKEND_INTERNAL_URL`, secret `INTERNAL_API_TOKEN`, and
-   `APP_ORIGIN` using the production values described above. The backend must
-   already be running and reachable from the Site runtime. The deployment helper
-   in [production setup](PRODUCTION_SETUP.md) configures and verifies the private
-   connection; it can also set these Site variables automatically.
+   settings and all three Site scopes in the table above.
+4. Run the [Functions deployment helper](APPWRITE_FUNCTIONS.md) for the selected
+   project. It deploys the backend Functions and configures
+   `APPWRITE_BACKEND_FUNCTION_ID`, secret `INTERNAL_API_TOKEN`, and the server
+   endpoint/project variables. Set `APP_ORIGIN` to the final HTTPS origin if
+   your proxy changes the request host.
 5. Deploy and wait for the build to reach `ready`. Verify the deployed URL:
    anonymous requests redirect to sign-in, non-admin accounts are denied, admin
    accounts can read reports, and removing the admin label denies subsequent
@@ -78,8 +80,8 @@ created during verification. It is excluded from every source package/image.
 
 The GitHub repository contains source and dependency lockfiles. Environment
 files, recordings, local builds, dependencies, caches, and upload archives are
-excluded by `.gitignore`. Set production secrets in Appwrite and the existing
-Docker environment; do not place them in GitHub source or public browser variables.
+excluded by `.gitignore`. Set production secrets in Appwrite variables; do not
+place them in GitHub source or public browser variables.
 
 `appwrite.config.json` records the local development project and schema. Its
 Site source path is `apps/web`. Connecting GitHub in the production Console does
@@ -100,8 +102,9 @@ manual uploads; GitHub deployment builds directly from the tracked frontend.
 The linked local development project is authenticated. The production Docker
 image passed live admin login, non-admin rejection, secure/HTTP-only cookie,
 protected-page/audio, and direct backend-token checks against local Appwrite.
-Temporary verification accounts were deleted afterwards. Production Sites
-deployment will be performed through the Console after the repository is on GitHub.
+Temporary verification accounts were deleted afterwards. This September 26
+verification used the Docker frontend; Appwrite-hosted verification is recorded
+separately in [VERIFICATION.md](VERIFICATION.md).
 
 ## References
 
