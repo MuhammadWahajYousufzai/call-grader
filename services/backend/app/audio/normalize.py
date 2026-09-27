@@ -1,11 +1,11 @@
-"""Audio validation + normalization (ffmpeg) for OpenAI upload limits."""
+"""Audio validation + normalization (ffmpeg) for Gemini inline upload limits."""
 
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
 
-OPENAI_LIMIT_BYTES = 25 * 1024 * 1024
+GEMINI_LIMIT_BYTES = 14 * 1024 * 1024
 
 
 def probe(path: Path) -> dict:
@@ -24,7 +24,7 @@ def probe(path: Path) -> dict:
 
 def normalize_for_transcription(src: Path, dst: Path) -> Path:
     """Return a path ready for upload: original if small, else mono 16k MP3-ish."""
-    if src.stat().st_size <= OPENAI_LIMIT_BYTES:
+    if src.stat().st_size <= GEMINI_LIMIT_BYTES:
         return src
     dst.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -38,7 +38,7 @@ def split_for_upload(path: Path, chunk_seconds: int = 600) -> list[tuple[Path, f
     """Split into chunks; returns [(chunk_path, offset_seconds)]."""
     info = probe(path)
     total = float(info.get("duration", 0) or 0)
-    if total <= chunk_seconds or path.stat().st_size <= OPENAI_LIMIT_BYTES:
+    if total <= chunk_seconds and path.stat().st_size <= GEMINI_LIMIT_BYTES:
         return [(path, 0.0)]
     out: list[tuple[Path, float]] = []
     start = 0.0

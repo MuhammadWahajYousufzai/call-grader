@@ -17,7 +17,7 @@ def finish_transcription(call):
     has_speech = bool(repos.get_segments(call_id))
     repos.update_call(call_id, {
         "pipeline_status": "ROMANIZATION_PENDING" if has_speech else "NO_SPEECH",
-        "transcription_model": get_settings().OPENAI_TRANSCRIBE_MODEL,
+        "transcription_model": get_settings().GEMINI_TRANSCRIBE_MODEL,
         "last_error_code": "", "last_error_message": "",
     })
     if has_speech:
@@ -35,13 +35,14 @@ def transcribe_chunk(call):
     key = "transcription_progress_" + call_id
     value = repos.get_setting(key)
     progress = json.loads(value) if value else None
-    if progress and progress.get("sha") == call.get("recording_sha256") and progress.get("done"):
+    model = get_settings().GEMINI_TRANSCRIBE_MODEL
+    if progress and progress.get("model") == model and progress.get("sha") == call.get("recording_sha256") and progress.get("done"):
         finish_transcription(call)
         return
-    if not progress or progress.get("sha") != call.get("recording_sha256"):
+    if not progress or progress.get("sha") != call.get("recording_sha256") or progress.get("model") != model:
         for segment in repos.get_segments(call_id):
             repos.delete_doc("transcript_segments", segment["$id"])
-        progress = {"sha": call.get("recording_sha256"), "chunk": 0, "done": False}
+        progress = {"sha": call.get("recording_sha256"), "model": model, "chunk": 0, "done": False}
         repos.set_setting(key, json.dumps(progress))
     repos.update_call(call_id, {"pipeline_status": "TRANSCRIBING"})
     directory = ensure_dirs()

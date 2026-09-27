@@ -53,7 +53,7 @@ def complete_job(job_id: str) -> None:
     repos.update_doc("processing_jobs", job_id, {"status": "DONE", "locked_by": "", "last_error": ""})
 
 
-def fail_job(job_id: str, error: str, retryable: bool = True) -> str:
+def fail_job(job_id: str, error: str, retryable: bool = True, retry_after: int = 0) -> str:
     from app.domain.helpers import backoff_delay_seconds
 
     job = repos.get_doc("processing_jobs", job_id)
@@ -67,6 +67,7 @@ def fail_job(job_id: str, error: str, retryable: bool = True) -> str:
         # network/API outage must not turn into a manual-resume requirement.
         exhausted = attempts >= max_attempts
         delay = s.JOB_RETRY_COOLDOWN_SECONDS if exhausted else backoff_delay_seconds(attempts)
+        delay = max(delay, retry_after)
         repos.update_doc("processing_jobs", job_id, {
             "status": "QUEUED",
             "attempt_count": 0 if exhausted else attempts,

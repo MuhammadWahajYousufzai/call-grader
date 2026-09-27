@@ -77,7 +77,7 @@ def test_restart_after_download_reuses_storage(monkeypatch):
     assert queued == [("TRANSCRIBE", "call1", "2026-09-25")]
 
 
-def test_openai_failure_keeps_existing_recording_and_retries(monkeypatch):
+def test_ai_failure_keeps_existing_recording_and_retries(monkeypatch):
     job = {"$id": "job1", "job_type": "TRANSCRIBE", "call_id": "call1"}
     call = {"$id": "call1", "pipeline_status": "AUDIO_VALIDATED",
             "recording_storage_file_id": "stored-file", "retry_count": 0}
@@ -86,7 +86,7 @@ def test_openai_failure_keeps_existing_recording_and_retries(monkeypatch):
     monkeypatch.setattr(worker.repos, "get_doc", lambda *_: call)
     monkeypatch.setattr(worker.repos, "update_call", lambda *args: None)
     monkeypatch.setitem(worker.HANDLERS, "TRANSCRIBE",
-                        lambda _: (_ for _ in ()).throw(RuntimeError("OpenAI unavailable")))
+                        lambda _: (_ for _ in ()).throw(RuntimeError("Gemini unavailable")))
     monkeypatch.setattr(worker, "fail_job", lambda *args, **kwargs: failures.append((args, kwargs)))
     assert worker.process_one("worker1")
     assert failures and failures[0][1]["retryable"] is True
@@ -111,21 +111,16 @@ def test_report_waits_for_all_calls_before_coaching(monkeypatch):
 
 
 def test_silent_audio_is_terminal_and_does_not_fallback(monkeypatch, tmp_path):
+    from app.ai import gemini
     calls = []
-
-    class Transcriptions:
-        def create(self, **kwargs):
-            calls.append(kwargs["response_format"])
-            return {"segments": [], "text": ""}
-
-    class Client:
-        audio = type("Audio", (), {"transcriptions": Transcriptions()})()
-
-    monkeypatch.setattr(transcription, "_client", Client)
+    def generate(*args, **kwargs):
+        calls.append(kwargs)
+        return {"candidates": [{"content": {"parts": [{"text": ""}]}, "finishReason": "STOP"}]}
+    monkeypatch.setattr(gemini, "generate", generate)
     audio = tmp_path / "silence.wav"
     audio.write_bytes(b"fixture")
     assert transcription.transcribe_file(audio) == []
-    assert calls == ["diarized_json"]
+    assert len(calls) == 1 and calls[0]["transcription"] is True
     report = compute_report([{"$id": "silent", "direction": "OUTBOUND",
                               "canonical_status": "ANSWERED", "pipeline_status": "NO_SPEECH",
                               "recording_storage_file_id": "stored"}], {})

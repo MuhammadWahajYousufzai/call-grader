@@ -73,7 +73,7 @@ def test_function_schedules_are_utc_and_execution_is_private():
 
 
 def test_last_transcription_checkpoint_does_not_redownload_or_retranscribe(monkeypatch):
-    monkeypatch.setattr(phases.repos, "get_setting", lambda key: json.dumps({"sha": "same", "done": True, "chunk": 2}))
+    monkeypatch.setattr(phases.repos, "get_setting", lambda key: json.dumps({"sha": "same", "model": phases.get_settings().GEMINI_TRANSCRIBE_MODEL, "done": True, "chunk": 2}))
     finish = Mock()
     monkeypatch.setattr(phases, "finish_transcription", finish)
     from app.jobs import worker
@@ -192,3 +192,24 @@ def test_cron_empty_body_is_safe_without_reading_body_json(monkeypatch, text, ex
         def body_json(self):
             raise AssertionError("Cron's empty JSON property must not be read")
     assert request_body(SimpleNamespace(req=Request())) == expected
+
+
+def test_paused_pipeline_ignores_queued_execution_but_allows_runtime_check(monkeypatch):
+    import io
+    import sys
+    from contextlib import nullcontext
+
+    from infra.appwrite import runner
+
+    monkeypatch.setenv('PIPELINE_ENABLED', 'false')
+    monkeypatch.setattr(runner, 'invocation', lambda _: nullcontext())
+    work = Mock(side_effect=AssertionError('No business workload while paused'))
+    monkeypatch.setattr(pipeline, 'run_worker', work)
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(json.dumps({'role': 'worker', 'body': {}, 'headers': {}})))
+    runner.main()
+    work.assert_not_called()
+    check = Mock(return_value={'pipeline_import': True})
+    monkeypatch.setattr(runner, 'runtime_check', check)
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(json.dumps({'role': 'worker', 'body': {'action': 'runtime-check'}, 'headers': {}})))
+    runner.main()
+    check.assert_called_once()

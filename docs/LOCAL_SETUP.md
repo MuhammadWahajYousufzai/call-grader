@@ -29,3 +29,17 @@ The browser check creates and removes a temporary account. `--fresh-schema` also
 creates disposable database/bucket resources, checks first-install provisioning
 and repeat-safe seeds, then deletes those resources. Existing users, calls and
 recordings are preserved. See [production setup](PRODUCTION_SETUP.md) for exact checks.
+
+## Bounded Gemini testing
+
+Keep application schedules disabled while testing the free key. See [Gemini](GEMINI.md).
+For a fresh local deployment that performs runtime checks without starting jobs:
+
+```sh
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused
+uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
+```
+
+`--paused` disables discovery, catch-up, worker and maintenance after the deployment
+checks. It leaves the API and Site available. Deployment builds still need disk
+space; the smoke helper runs directly on the host and does not require a rebuild.

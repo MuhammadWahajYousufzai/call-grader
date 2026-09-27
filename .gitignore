@@ -25,3 +25,5 @@ mypy_cache/
 *.ogg
 *.pcm
 *.tar.gz
+
+.verification/

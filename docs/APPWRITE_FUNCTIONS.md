@@ -102,7 +102,7 @@ python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJEC
 python3 scripts/deploy_appwrite.py deploy
 ```
 
-`configure` asks for the OpenAI and Jazz credentials using hidden input, generates
+`configure` asks for the Gemini and Jazz credentials using hidden input, generates
 an internal token, and writes `.env.appwrite-production.json` with owner-only
 permissions. This file is ignored by Git. Functions use Appwrite's automatically
 scoped execution keys; no permanent Appwrite server key is required.

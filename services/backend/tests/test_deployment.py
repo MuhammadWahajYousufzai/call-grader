@@ -155,3 +155,28 @@ def test_fresh_schema_verification_cannot_target_production(monkeypatch):
     import verify_bootstrap
     with pytest.raises(verify_bootstrap.DeployError, match="restricted"):
         verify_bootstrap.verify_fresh_schema(SimpleNamespace(local=False))
+
+
+def test_paused_function_metadata_cannot_enable_the_workload():
+    template = json.loads((SCRIPTS.parent / 'appwrite.config.json').read_text())
+    function = next(f for f in template['functions'] if f['$id'] == 'call-grader-worker')
+    args = deploy.function_metadata({**function, 'schedule': '', 'enabled': False})
+    assert '--enabled=false' in args and '--enabled' not in args
+    assert args[args.index('--schedule')+1] == ''
+
+
+def test_local_key_swap_is_refreshed_from_private_env(monkeypatch, tmp_path):
+    config = {'APPWRITE_ENDPOINT': 'http://localhost/v1', 'APPWRITE_PROJECT_ID': 'local',
+              'GEMINI_API_KEY': 'old-test-key', 'JAZZ_UAN': 'test', 'JAZZ_PASSWORD': 'test',
+              'INTERNAL_API_TOKEN': 'test', 'GEMINI_TRANSCRIBE_MODEL': 'gemini-3.5-transcribe',
+              'GEMINI_ROMANIZER_MODEL': 'gemini-3.8-flash', 'GEMINI_GRADING_MODEL': 'gemini-3.8-flash'}
+    path = tmp_path / 'private.json'
+    path.write_text(json.dumps(config))
+    path.chmod(0o600)
+    (tmp_path / 'appwrite.config.json').write_text(json.dumps({'projectId': 'local'}))
+    (tmp_path / '.env').write_text('GEMINI_API_KEY=new-test-key\nGEMINI_REQUESTS_PER_MINUTE=3\n')
+    monkeypatch.setattr(deploy, 'ROOT', tmp_path)
+    values, _ = deploy.configuration(SimpleNamespace(local=True, config=path))
+    assert values['GEMINI_API_KEY'] == 'new-test-key'
+    assert values['GEMINI_REQUESTS_PER_MINUTE'] == '3'
+    assert json.loads(path.read_text())['GEMINI_API_KEY'] == 'old-test-key'

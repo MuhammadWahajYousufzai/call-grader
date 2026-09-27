@@ -33,14 +33,21 @@ class Settings(BaseSettings):
     BUSINESS_DAY_START: str = "09:30"
     BUSINESS_DAY_END: str = "18:00"
 
-    OPENAI_API_KEY: str = ""
-    OPENAI_TRANSCRIBE_MODEL: str = "gpt-4o-transcribe-diarize"
-    OPENAI_TRANSCRIBE_FALLBACK_MODEL: str = "gpt-transcribe"
-    OPENAI_GRADING_MODEL: str = "gpt-6-sol"
-    OPENAI_ROMANIZER_MODEL: str = "gpt-6-luna"
-    OPENAI_REASONING_EFFORT: str = "medium"
-    OPENAI_TIMEOUT_SECONDS: int = 120
-    OPENAI_MAX_RETRIES: int = 3
+    GEMINI_API_KEY: str = ""
+    GEMINI_TRANSCRIBE_MODEL: str = "gemini-3.5-transcribe"
+    GEMINI_GRADING_MODEL: str = "gemini-3.8-flash"
+    GEMINI_ROMANIZER_MODEL: str = "gemini-3.8-flash"
+    GEMINI_TIMEOUT_SECONDS: int = 120
+    GEMINI_MAX_OUTPUT_TOKENS: int = 16384
+    GEMINI_REQUESTS_PER_MINUTE: float = 2
+    GEMINI_DURABLE_RATE_LIMIT: bool = True
+
+    @field_validator("GEMINI_REQUESTS_PER_MINUTE")
+    @classmethod
+    def _positive_rate(cls, value):
+        if not 0 < value <= 10000:
+            raise ValueError("GEMINI_REQUESTS_PER_MINUTE must be positive")
+        return value
 
     PRODUCT_KEYWORDS: str = ""
 
@@ -82,8 +89,8 @@ def validate_for_role(settings: Settings, role: str) -> list[str]:
         for name in ("APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "APPWRITE_API_KEY"):
             if not getattr(settings, name):
                 missing.append(name)
-    if role in ("worker", "scheduler", "all") and not settings.OPENAI_API_KEY:
-        missing.append("OPENAI_API_KEY")
+    if role in ("worker", "scheduler", "all") and not settings.GEMINI_API_KEY:
+        missing.append("GEMINI_API_KEY")
     if role in ("jazz", "worker", "scheduler", "all"):
         # Jazz creds only enforced when running the Jazz-capable worker/sync.
         pass

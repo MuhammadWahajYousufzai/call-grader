@@ -16,15 +16,17 @@ def require(condition, message):
         raise DeployError('Verification failed: ' + message)
 
 
-def verify_resources(directory, env, private_values, *, paused=False):
+def verify_resources(directory, env, private_values, *, paused=False, provisioning=False):
     template = json.loads((ROOT / 'appwrite.config.json').read_text())
     for expected in template['functions']:
         ident = expected['$id']
         actual = command(['functions', 'get', '--function-id', ident], directory, env, json_output=True)
-        require(actual.get('enabled') and actual.get('deploymentId'), ident + ' has no enabled active deployment')
+        require(actual.get('deploymentId'), ident + ' has no active deployment')
+        enabled = not (paused and expected['schedule'] and not provisioning)
+        require(bool(actual.get('enabled')) == enabled, ident + ' enabled state differs')
         require(not actual.get('execute') and not actual.get('events'), ident + ' must be private')
         require(actual.get('schedule', '') == ('' if paused else expected['schedule']), ident + ' schedule differs')
-        scopes = expected['scopes'] if paused or ident != 'call-grader-bootstrap' else ['databases.read']
+        scopes = expected['scopes'] if provisioning or ident != 'call-grader-bootstrap' else ['databases.read']
         require(set(actual.get('scopes', [])) == set(scopes), ident + ' scopes differ')
         for key in ('runtime', 'timeout', 'entrypoint', 'commands', 'deploymentRetention'):
             require(actual.get(key) == expected[key], ident + ' ' + key + ' differs')
@@ -38,7 +40,7 @@ def verify_resources(directory, env, private_values, *, paused=False):
         if ident in ('call-grader-sync', 'call-grader-worker'):
             needed |= {'JAZZ_UAN', 'JAZZ_PASSWORD'}
         if ident == 'call-grader-worker':
-            needed.add('OPENAI_API_KEY')
+            needed |= {'GEMINI_API_KEY', 'GEMINI_TRANSCRIBE_MODEL', 'GEMINI_GRADING_MODEL', 'GEMINI_ROMANIZER_MODEL'}
         if ident == 'call-grader-api':
             needed.add('INTERNAL_API_TOKEN')
         require(needed <= keys, ident + ' is missing environment variables')
@@ -81,11 +83,11 @@ def verify(args):
         directory = Path(temporary)
         (directory / 'appwrite.config.json').write_text(json.dumps({
             'projectId': values['APPWRITE_PROJECT_ID'], 'endpoint': values['APPWRITE_ENDPOINT']}))
-        verify_resources(directory, env, tuple(values.values()))
+        verify_resources(directory, env, tuple(values.values()), paused=getattr(args, "paused", False))
         result = execute('call-grader-api', {}, directory, env, tuple(values.values()), readiness=True)
         require(result.get('ok') is True and result.get('appwrite') is True, 'API cannot read its database')
         print('PASS: deployed API reads Appwrite successfully.', flush=True)
-        for ident in ('call-grader-worker', 'call-grader-sync', 'call-grader-catchup'):
+        for ident in (() if getattr(args, 'paused', False) else ('call-grader-worker', 'call-grader-sync', 'call-grader-catchup')):
             result = execute(ident, {'action': 'runtime-check'}, directory, env, tuple(values.values()))
             require(all(result.get(key) for key in ('pipeline_import', 'chromium', 'ffmpeg', 'ffprobe')),
                     ident + ' native tools failed')
@@ -97,4 +99,4 @@ def verify(args):
             from verify_bootstrap import verify_fresh_schema
             verify_fresh_schema(args)
     print('Deployment verification passed. Check admin sign-in and playback at the selected Site domain.')
-    print('This check does not call OpenAI; valid credentials with funded API quota are required for fresh AI results.')
+    print('This check does not call Gemini; valid credentials with funded API quota are required for fresh AI results.')

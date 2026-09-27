@@ -9,7 +9,7 @@ project when deploying. Keep its current installation and data volumes.
 - `_APP_FUNCTIONS_TIMEOUT` permits 900 seconds.
 - Native builds can download Alpine/Python packages; sufficient build disk/RAM.
 - Existing Appwrite hosting DNS/TLS configured for Site domains.
-- Funded OpenAI API account and working Jazz credentials.
+- Funded Gemini API account and working Jazz credentials.
 
 The helper checks available Python runtimes and rejects failed builds, missing
 schema, unsafe resource permissions, invalid role scopes and unreadable Appwrite.
@@ -24,7 +24,7 @@ python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJEC
 python3 scripts/deploy_appwrite.py deploy
 ```
 
-Hidden prompts collect Jazz/OpenAI credentials. The helper generates the internal
+Hidden prompts collect Jazz/Gemini credentials. The helper generates the internal
 token and stores `.env.appwrite-production.json` with mode 600 (ignored by Git).
 No permanent Appwrite application API key is needed. Do not overwrite the linked
 local manifest: the helper explicitly targets production using a temporary manifest.
@@ -71,7 +71,7 @@ private audio playback when a real recording exists; a new empty project reports
 that playback check as skipped. Install Chromium for this optional browser check:
 `uv run --project services/backend playwright install chromium`.
 
-These verification commands do not call Jazz or OpenAI. Check the first scheduled
+These verification commands do not call Jazz or Gemini. Check the first scheduled
 batch on Dashboard/System to verify production credentials, provider quota and
 real AI results. System failures/backlog must not be mistaken for finished grades.
 
@@ -81,3 +81,19 @@ Push GitHub-connected resources for source updates, or rerun the deployment help
 for resource/variable/schema changes. Rerun verification afterward. Appwrite cron
 runs recover ordinary crashes automatically from durable jobs and checkpoints.
 Back up Appwrite's database/bucket and store private config in a vault.
+
+## Testing before enabling the workload
+
+Use `deploy --paused` and `verify --paused` while checking a free Gemini key.
+This performs provisioning and runtime checks, then leaves all scheduled workload
+Functions disabled and does not dispatch initial jobs. The Site remains available.
+
+Selected Gemini model names are stored in the private production configuration.
+To replace a production key, edit `GEMINI_API_KEY` in that private JSON file and
+rerun `deploy --paused`; the helper updates the Worker Function's secret variables.
+Changing a local `.env` does not change deployed production variables.
+For local deployment the helper refreshes Gemini credentials/model names directly
+from `.env`, even when `.env.appwrite-local.json` already exists.
+
+After a successful real-call test and paid-project quota verification, run normal
+`deploy` to enable schedules. See [Gemini testing](GEMINI.md).

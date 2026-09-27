@@ -45,8 +45,9 @@ def configuration(args):
         raise DeployError("Private configuration must have owner-only permissions: chmod 600 " + args.config.name)
     try:
         values = json.loads(args.config.read_text())
-        required = ("APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "OPENAI_API_KEY",
-                    "JAZZ_UAN", "JAZZ_PASSWORD", "INTERNAL_API_TOKEN")
+        required = ("APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "GEMINI_API_KEY",
+                    "JAZZ_UAN", "JAZZ_PASSWORD", "INTERNAL_API_TOKEN",
+                    "GEMINI_TRANSCRIBE_MODEL", "GEMINI_GRADING_MODEL", "GEMINI_ROMANIZER_MODEL")
         if any(not isinstance(values.get(key), str) or not values[key].strip() for key in required):
             raise ValueError
     except (ValueError, TypeError):
@@ -58,6 +59,15 @@ def configuration(args):
             raise DeployError("--local must target the linked localhost development project.")
     else:
         validate_target(endpoint, project)
+    if args.local:
+        # Re-read the selected provider credentials when a key is replaced in .env.
+        from dotenv import dotenv_values
+        source = dotenv_values(ROOT / ".env")
+        for key in ("GEMINI_API_KEY", "GEMINI_TRANSCRIBE_MODEL", "GEMINI_GRADING_MODEL",
+                    "GEMINI_ROMANIZER_MODEL", "GEMINI_REQUESTS_PER_MINUTE",
+                    "GEMINI_TIMEOUT_SECONDS", "GEMINI_MAX_OUTPUT_TOKENS"):
+            if source.get(key):
+                values[key] = source[key]
     return values, {**os.environ, "APPWRITE_ENDPOINT": endpoint, "APPWRITE_PROJECT_ID": project}
 
 
@@ -81,8 +91,10 @@ def configure(args):
 
         source = dotenv_values(ROOT / ".env")
         config = {key: source.get(key, "") for key in (
-            "APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "OPENAI_API_KEY", "JAZZ_UAN",
+            "APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "GEMINI_API_KEY", "JAZZ_UAN",
             "JAZZ_PASSWORD", "INTERNAL_API_TOKEN")}
+        for key in ("GEMINI_TRANSCRIBE_MODEL", "GEMINI_GRADING_MODEL", "GEMINI_ROMANIZER_MODEL"):
+            config[key] = source.get(key, "")
         config["APPWRITE_ENDPOINT"] = "http://localhost/v1"
         if not all(config.values()):
             raise DeployError("Local .env is missing required credentials.")
@@ -95,10 +107,13 @@ def configure(args):
     project = args.project_id or input("Production project ID from Appwrite Console: ").strip()
     validate_target(endpoint, project)
     config = {"APPWRITE_ENDPOINT": endpoint, "APPWRITE_PROJECT_ID": project,
-              "OPENAI_API_KEY": getpass.getpass("OpenAI API key: "),
+              "GEMINI_API_KEY": getpass.getpass("Gemini API key: "),
               "JAZZ_UAN": getpass.getpass("Jazz UAN: "),
               "JAZZ_PASSWORD": getpass.getpass("Jazz password: "),
-              "INTERNAL_API_TOKEN": secrets.token_urlsafe(48)}
+              "INTERNAL_API_TOKEN": secrets.token_urlsafe(48),
+              "GEMINI_TRANSCRIBE_MODEL": "gemini-3.5-transcribe",
+              "GEMINI_GRADING_MODEL": "gemini-3.8-flash",
+              "GEMINI_ROMANIZER_MODEL": "gemini-3.8-flash"}
     if not all(config.values()):
         raise DeployError("All credentials are required.")
     fd = os.open(args.config, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -141,7 +156,7 @@ def function_metadata(function):
             "--deployment-retention", str(function["deploymentRetention"]),
             "--build-specification", function["buildSpecification"],
             "--runtime-specification", function["runtimeSpecification"],
-            "--enabled", "--logging"]
+            "--enabled" if function.get("enabled", True) else "--enabled=false", "--logging"]
     for scope in function["scopes"]:
         args.extend(["--scopes", scope])
     # This app intentionally has no client execution permissions or events.
@@ -228,9 +243,12 @@ def deploy(args):
         runtimes = command(["functions", "list-runtimes"], directory, env, json_output=True)["runtimes"]
         if not any(item["$id"] == "python-3.12" for item in runtimes):
             raise DeployError("Enable python-3.12 in the server's _APP_FUNCTIONS_RUNTIMES and restart the Appwrite API container. No Appwrite upgrade is required.")
-        common = {"APP_ENV": "production",
+        common = {"APP_ENV": "production", "PIPELINE_ENABLED": "false",
                   "APPWRITE_PROJECT_ID": project, "WORKER_LEASE_SECONDS": "1200",
-                  "OPENAI_TIMEOUT_SECONDS": "90", "OPENAI_MAX_RETRIES": "0",
+                  "GEMINI_TIMEOUT_SECONDS": values.get("GEMINI_TIMEOUT_SECONDS", "120"),
+                  "GEMINI_REQUESTS_PER_MINUTE": values.get("GEMINI_REQUESTS_PER_MINUTE", "2"),
+                  "GEMINI_MAX_OUTPUT_TOKENS": values.get("GEMINI_MAX_OUTPUT_TOKENS", "16384"),
+                  "GEMINI_DURABLE_RATE_LIMIT": "true",
                   "APPWRITE_SYNC_FUNCTION_ID": "call-grader-sync",
                   "APPWRITE_WORKER_FUNCTION_ID": "call-grader-worker"}
         common["APPWRITE_ENDPOINT"] = "http://host.docker.internal/v1" if args.local else endpoint
@@ -245,7 +263,8 @@ def deploy(args):
             if role in ("sync", "worker"):
                 role_values.update({key: values[key] for key in ("JAZZ_UAN", "JAZZ_PASSWORD")})
             if role == "worker":
-                role_values["OPENAI_API_KEY"] = values["OPENAI_API_KEY"]
+                role_values.update({key: values[key] for key in (
+                    "GEMINI_API_KEY", "GEMINI_TRANSCRIBE_MODEL", "GEMINI_GRADING_MODEL", "GEMINI_ROMANIZER_MODEL")})
             if role == "api":
                 role_values["INTERNAL_API_TOKEN"] = values["INTERNAL_API_TOKEN"]
             variables("functions", function_id, role_values, directory, env, private_values)
@@ -287,18 +306,25 @@ def deploy(args):
         # after the code push before admitting authenticated traffic.
         command(site_metadata(config["sites"][0]), directory, env, private_values=private_values)
         from verify_appwrite import verify_resources
-        verify_resources(directory, env, private_values, paused=True)
+        verify_resources(directory, env, private_values, paused=True, provisioning=True)
         for function in template["functions"]:
             if function["schedule"]:
-                command(function_metadata(function), directory, env, private_values=private_values)
-        for function_id in ("call-grader-sync", "call-grader-worker"):
-            command(["functions", "create-execution", "--function-id", function_id,
-                     "--async", "--body", "{}"], directory, env, private_values=private_values)
+                if not args.paused:
+                    variables("functions", function["$id"], {"PIPELINE_ENABLED": "true"}, directory, env, private_values)
+                target = {**function, "schedule": "", "enabled": False} if args.paused else function
+                command(function_metadata(target), directory, env, private_values=private_values)
+        if not args.paused:
+            for function_id in ("call-grader-sync", "call-grader-worker"):
+                command(["functions", "create-execution", "--function-id", function_id,
+                         "--async", "--body", "{}"], directory, env, private_values=private_values)
         # Bootstrap stays private and has no cron. Its broad scopes are removed
         # after provisioning; the next deployment restores them for migration.
         bootstrap = next(f for f in functions if f["$id"] == "call-grader-bootstrap")
         command(function_metadata({**bootstrap, "scopes": ["databases.read"]}),
                 directory, env, private_values=private_values)
+    if args.paused:
+        print("Deployed Functions + Site with all scheduled workloads disabled; no discovery or AI jobs started.")
+        return
     print("Deployed Functions + Site. Discovery: 18:01 Karachi; catch-up: hourly; worker: every minute; retention: 02:30 Karachi.")
     print("In Console, connect the Site to GitHub (apps/web), set its domain, and assign the admin label to your account.")
 
@@ -307,6 +333,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["configure", "deploy", "verify"])
     parser.add_argument("--config", type=Path)
+    parser.add_argument("--paused", action="store_true", help="Keep scheduled workloads disabled and do not start initial jobs")
     parser.add_argument("--local", action="store_true", help="Target only the linked localhost development project")
     parser.add_argument("--function-id", action="append", help="Build only selected Functions; all other Functions must have active deployments")
     parser.add_argument("--skip-function-builds", action="store_true", help="Resume local verification after Function builds are already active")

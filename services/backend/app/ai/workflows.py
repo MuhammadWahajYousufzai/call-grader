@@ -1,9 +1,4 @@
-"""Agents SDK workflows: RomanUrduNormalizer, CallGrader, DailyCoachingSummarizer.
-
-Uses openai-agents 0.22.3 Responses-based path. Inspected at build time:
-Agent(name, instructions, model, output_type) + Runner.run_sync(agent, input).
-Tracing disabled for private customer data.
-"""
+"""Gemini workflows for Roman Urdu, grading and daily coaching."""
 
 from __future__ import annotations
 
@@ -66,33 +61,8 @@ class GradeOutput(BaseModel):
 
 
 def _run_agent(instructions: str, model: str, output_type, user_content: str):
-    """Thin wrapper over Agents SDK Runner with tracing disabled for privacy."""
-    try:
-        from agents import (
-            Agent,
-            AgentOutputSchema,
-            Runner,
-            set_default_openai_client,
-            set_default_openai_key,
-            set_tracing_disabled,
-        )
-    except ImportError as e:
-        raise RuntimeError(f"openai-agents not installed: {e}")
-    import os
-
-    os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
-    set_tracing_disabled(True)
-    from openai import AsyncOpenAI
-
-    settings = get_settings()
-    set_default_openai_key(settings.OPENAI_API_KEY)
-    set_default_openai_client(AsyncOpenAI(api_key=settings.OPENAI_API_KEY,
-                                        timeout=settings.OPENAI_TIMEOUT_SECONDS,
-                                        max_retries=settings.OPENAI_MAX_RETRIES))
-    schema = AgentOutputSchema(output_type, strict_json_schema=False) if output_type is GradeOutput else output_type
-    agent = Agent(name="yousuf-worker", instructions=instructions, model=model, output_type=schema)
-    result = Runner.run_sync(agent, input=user_content)
-    return result.final_output
+    from app.ai.gemini import structured_output
+    return structured_output(instructions, model, output_type, user_content)
 
 
 def romanize_segments(segments: list[dict]) -> list[dict]:
@@ -104,12 +74,13 @@ def romanize_segments(segments: list[dict]) -> list[dict]:
                        "text": sg.get("raw_text", "")} for i, sg in enumerate(segments)],
     }
     out: RomanizerOutput = _run_agent(
-        ROMANIZER_SYSTEM, s.OPENAI_ROMANIZER_MODEL, RomanizerOutput,
+        ROMANIZER_SYSTEM, s.GEMINI_ROMANIZER_MODEL, RomanizerOutput,
         "Normalize these segments to exact Roman Urdu (JSON only):\n" + json.dumps(payload)[:30000],
     )
     by_id = {x.id: x.text for x in out.segments}
-    if any(sg.get("id", f"seg_{i}") not in by_id for i, sg in enumerate(segments)):
-        raise RuntimeError("Romanizer omitted one or more transcript segments")
+    expected = {sg.get("id", f"seg_{i}") for i, sg in enumerate(segments)}
+    if set(by_id) != expected or len(out.segments) != len(segments) or any(not text.strip() for text in by_id.values()):
+        raise RuntimeError("Romanizer returned missing, duplicate, extra, or empty transcript segments")
     result = []
     for i, sg in enumerate(segments):
         sid = sg.get("id", f"seg_{i}")
@@ -158,7 +129,7 @@ def grade_call(segments: list[dict], call_meta: dict, business_rules: str) -> di
         f"{transcript[:30000]}\n--- END TRANSCRIPT ---\n"
         + _grade_schema_hint(seg_ids, duration, business_rules)
     )
-    out: GradeOutput = _run_agent(GRADING_SYSTEM, s.OPENAI_GRADING_MODEL, GradeOutput, user_content)
+    out: GradeOutput = _run_agent(GRADING_SYSTEM, s.GEMINI_GRADING_MODEL, GradeOutput, user_content)
     data = out.model_dump()
     # --- validation (never blindly trust LLM) ---
     valid_ids = set(seg_ids)
@@ -188,8 +159,8 @@ def grade_call(segments: list[dict], call_meta: dict, business_rules: str) -> di
             "segment_ids": ((data.get("dimension_scores", {}) or {}).get(k, {}) or {}).get("segment_ids", [])}
         for k, v in dims.items()
     }
-    data["grader_model"] = s.OPENAI_GRADING_MODEL
-    data["romanizer_model"] = s.OPENAI_ROMANIZER_MODEL
+    data["grader_model"] = s.GEMINI_GRADING_MODEL
+    data["romanizer_model"] = s.GEMINI_ROMANIZER_MODEL
     data["grading_prompt_version"] = GRADING_PROMPT_VERSION
     data["rubric_version"] = RUBRIC_VERSION
     return data
@@ -197,27 +168,13 @@ def grade_call(segments: list[dict], call_meta: dict, business_rules: str) -> di
 
 def daily_coaching_summary(metrics: dict, highlights: list[dict]) -> str:
     s = get_settings()
-    from agents import (
-        Agent,
-        Runner,
-        set_default_openai_client,
-        set_default_openai_key,
-        set_tracing_disabled,
-    )
+    from app.ai.gemini import generate, text_output
 
-    set_tracing_disabled(True)
-    set_default_openai_key(s.OPENAI_API_KEY)
-    from openai import AsyncOpenAI
-
-    set_default_openai_client(AsyncOpenAI(api_key=s.OPENAI_API_KEY,
-                                        timeout=s.OPENAI_TIMEOUT_SECONDS,
-                                        max_retries=s.OPENAI_MAX_RETRIES))
-    agent = Agent(name="daily-coach", instructions=DAILY_SUMMARY_SYSTEM, model=s.OPENAI_GRADING_MODEL)
     content = ("PRE-COMPUTED METRICS (authoritative, do not recalculate):\n"
                + json.dumps(metrics)[:12000]
                + "\nHIGHLIGHTS:\n" + json.dumps(highlights)[:12000])
-    result = Runner.run_sync(agent, input=content)
-    summary = str(result.final_output or "")[:8000]
+    result = generate(s.GEMINI_GRADING_MODEL, [{"text": content}], system=DAILY_SUMMARY_SYSTEM)
+    summary = text_output(result)[:8000]
     if not summary:
         raise RuntimeError("Daily coaching summary was empty")
     return summary

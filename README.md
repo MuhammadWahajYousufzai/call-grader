@@ -13,6 +13,7 @@ worker or scheduler containers are deployed by this repository.
 - [Functions, schedules and GitHub settings](docs/APPWRITE_FUNCTIONS.md)
 - [Local setup](docs/LOCAL_SETUP.md)
 - [Authentication and Sites](docs/APPWRITE_SITES.md)
+- [Gemini configuration and bounded testing](docs/GEMINI.md)
 - [Verification evidence](docs/VERIFICATION.md)
 
 Office hours are 09:30–18:00 Karachi. Discovery starts daily at **18:01**;
@@ -45,8 +46,8 @@ pnpm --dir apps/web build
 
 ## Operations
 
-The System page shows discovery, retry/backlog and scheduling state. OpenAI
-requires a funded API account; exhausted quota leaves durable jobs queued with
+The System page shows discovery, retry/backlog and scheduling state. Gemini
+uses the configured models; exhausted quota leaves durable jobs queued with
 backoff. Real recordings remain private. Audio is deleted after 15 days once
 transcription no longer needs it; transcripts, grades and reports are retained.
 See [operations](docs/OPERATIONS.md).

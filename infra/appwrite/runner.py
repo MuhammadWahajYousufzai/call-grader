@@ -1,6 +1,7 @@
 """Subprocess entrypoint for bounded synchronous Function workloads."""
 
 import json
+import os
 import sys
 from types import SimpleNamespace
 
@@ -13,6 +14,8 @@ def main():
     with invocation(context):
         if request["body"].get("action") == "runtime-check":
             result = runtime_check()
+        elif os.environ.get("PIPELINE_ENABLED", "true").lower() != "true":
+            result = {"status": "PAUSED"}
         else:
             from app.functions.pipeline import run_maintenance, run_sync, run_worker
 

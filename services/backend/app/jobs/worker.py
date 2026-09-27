@@ -179,7 +179,7 @@ def do_transcribe(call: dict) -> None:
             pass
     repos.save_segments(call_id, [{k: v for k, v in d.items() if k != "id"} for d in docs])
     repos.update_call(call_id, {"pipeline_status": "ROMANIZATION_PENDING",
-                                "transcription_model": s.OPENAI_TRANSCRIBE_MODEL})
+                                "transcription_model": s.GEMINI_TRANSCRIBE_MODEL})
     repos.ensure_job("ROMANIZE", call_id, call.get("reporting_date", ""))
     try:
         src.unlink(missing_ok=True)
@@ -242,13 +242,13 @@ def do_grade(call: dict) -> None:
         "overall_score": float(result.get("overall_score", 0) or 0),
         "call_type": str(result.get("call_type", "other")),
         "primary_intent": str(result.get("primary_intent", "other")),
-        "grader_model": s.OPENAI_GRADING_MODEL,
+        "grader_model": s.GEMINI_GRADING_MODEL,
         "grading_prompt_version": GRADING_PROMPT_VERSION,
         "rubric_version": RUBRIC_VERSION,
         "result_json": _json.dumps(result)[:65000],
     })
     repos.update_call(call_id, {"pipeline_status": "COMPLETE", "last_error_code": "",
-                                "last_error_message": "", "grader_model": s.OPENAI_GRADING_MODEL,
+                                "last_error_message": "", "grader_model": s.GEMINI_GRADING_MODEL,
                                 "grading_prompt_version": GRADING_PROMPT_VERSION,
                                 "rubric_version": RUBRIC_VERSION})
     rd = call.get("reporting_date", "")
@@ -391,7 +391,7 @@ def process_one(worker_id: str) -> bool:
             })
             return True
         msg = str(e)
-        retryable = not any(k in msg for k in ("AUDIO_INVALID", "schema", "unknown job"))
+        retryable = getattr(e, "retryable", not any(k in msg for k in ("AUDIO_INVALID", "schema", "unknown job")))
         if call_id:
             try:
                 c = repos.get_doc("calls", call_id)
@@ -400,7 +400,8 @@ def process_one(worker_id: str) -> bool:
                     repos.update_call(call_id, {"retry_count": rc})
             except Exception:
                 pass
-        outcome = fail_job(job["$id"], msg[:2000], retryable=retryable)
+        outcome = fail_job(job["$id"], msg[:2000], retryable=retryable,
+                           retry_after=getattr(e, "retry_after", 0))
         if call_id:
             phase = {"DOWNLOAD": "DOWNLOAD", "TRANSCRIBE": "TRANSCRIPTION",
                      "ROMANIZE": "ROMANIZATION", "GRADE": "GRADING"}.get(jtype, "")

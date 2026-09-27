@@ -1,3 +1,18 @@
+## September 27 Gemini migration
+
+The configured provider is now Gemini. The application schedules were disabled
+before bounded testing. Native `gemini-3.5-transcribe` succeeded twice on one
+59.04-second recording (16 turns, two speakers each). Both
+`gemini-3.8-flash` Roman Urdu requests returned HTTP 503/high demand; grading and
+coaching remain unverified. Four generation requests were made in total, with no
+full workload or business-result writes. The retained checkpoint avoids repeating
+transcription on the next attempt.
+
+Backend tests: 84 passed. Dependency lock validated offline. Ruff passed. Native
+Appwrite deployments still contain the previous provider source; rebuilding with
+`--paused` is required before enabling work. See [Gemini evidence](GEMINI.md).
+The historical evidence below describes earlier versions and providers.
+
 # End-to-end verification
 
 Current deployment architecture: Appwrite Functions + Sites. Docker application
