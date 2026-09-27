@@ -29,4 +29,12 @@ describe("private Function backend", () => {
     mocks.execute.mockResolvedValueOnce({ status: "completed", responseStatusCode: 401, responseBody: '{}' });
     await expect(backendFetch("/api/reports")).rejects.toThrow("401");
   });
+  it("fails closed if the Function id is missing", async () => {
+    vi.stubEnv("APPWRITE_BACKEND_FUNCTION_ID", "");
+    vi.stubEnv("INTERNAL_API_TOKEN", "internal-test");
+    mocks.admin.mockResolvedValue({ $id: "verified-admin" });
+    await expect(backendFetch("/api/reports")).rejects.toThrow("not configured");
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
 });

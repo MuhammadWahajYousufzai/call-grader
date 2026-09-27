@@ -8,8 +8,6 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-import time
-import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -19,7 +17,7 @@ from app.appwrite import client as aw
 from app.appwrite import repos
 from app.config.logging import get_logger
 from app.config.settings import get_settings
-from app.jobs.queue import claim_next_job, complete_job, fail_job, recover_stale_leases
+from app.jobs.queue import claim_next_job, complete_job, fail_job
 
 log = get_logger("worker")
 
@@ -383,7 +381,7 @@ def process_one(worker_id: str) -> bool:
             try:
                 cleanup_processed_audio_if_expired(call)
             except Exception:
-                log.warning("Expired audio cleanup deferred to scheduler")
+                log.warning("Expired audio cleanup deferred to maintenance Function")
     except Exception as e:
         from app.functions.phases import ContinueJob
 
@@ -422,23 +420,3 @@ def process_one(worker_id: str) -> bool:
                 except Exception:
                     pass
     return True
-
-
-def main() -> None:
-    worker_id = f"worker-{uuid.uuid4().hex[:6]}"
-    s = get_settings()
-    recover_stale_leases()
-    recover_incomplete_calls()
-    while True:
-        try:
-            recover_stale_leases()
-            if not process_one(worker_id):
-                time.sleep(s.WORKER_POLL_INTERVAL_SECONDS)
-        except KeyboardInterrupt:
-            break
-        except Exception:
-            time.sleep(s.WORKER_POLL_INTERVAL_SECONDS)
-
-
-if __name__ == "__main__":
-    main()

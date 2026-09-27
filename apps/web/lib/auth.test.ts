@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), getSession: vi.fn(), createSession: vi.fn(), deleteSession: vi.fn(),
-  cookieGet: vi.fn(), cookieSet: vi.fn(), cookieDelete: vi.fn(), fetch: vi.fn(),
+  cookieGet: vi.fn(), cookieSet: vi.fn(), cookieDelete: vi.fn(), fetch: vi.fn(), execute: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: mocks.cookieGet, set: mocks.cookieSet, delete: mocks.cookieDelete }) }));
+vi.mock("./appwrite-server", () => ({ siteClient: async () => ({}) }));
 vi.mock("node-appwrite", () => ({
+  Functions: class { createExecution = mocks.execute; },
   Client: class { setEndpoint() { return this; } setProject() { return this; } setKey() { return this; } setSession() { return this; } },
   Account: class { get = mocks.get; getSession = mocks.getSession; createEmailPasswordSession = mocks.createSession; deleteSession = mocks.deleteSession; },
 }));
@@ -28,6 +30,7 @@ beforeEach(() => {
   vi.stubEnv("APPWRITE_ENDPOINT", "https://appwrite.example/v1");
   vi.stubEnv("APPWRITE_PROJECT_ID", "test-project");
   vi.stubEnv("APPWRITE_AUTH_API_KEY", "test-auth-key");
+  vi.stubEnv("APPWRITE_BACKEND_FUNCTION_ID", "api");
   vi.stubEnv("INTERNAL_API_TOKEN", "test-internal-token");
   vi.stubEnv("APP_ORIGIN", "https://dashboard.example");
   vi.stubEnv("NODE_ENV", "production");
@@ -71,11 +74,11 @@ describe("server-side admin authorization", () => {
     await expect(requireAdmin()).resolves.toHaveProperty("labels", ["admin"]);
   });
   it("forwards the verified identity and overwrites spoofed internal headers", async () => {
-    mocks.fetch.mockResolvedValue(Response.json({ ok: true }));
+    mocks.execute.mockResolvedValue({ status: "completed", responseStatusCode: 200, responseBody: '{"ok":true}' });
     await backendFetch("/api/admin/agents", { method: "POST", headers: { "x-actor": "spoofed", "x-internal-token": "spoofed" } });
-    const options = mocks.fetch.mock.calls[0][1];
-    expect(options.headers.get("x-actor")).toBe(admin.$id);
-    expect(options.headers.get("x-internal-token")).toBe("test-internal-token");
+    const options = mocks.execute.mock.calls[0][0];
+    expect(options.headers["x-actor"]).toBe(admin.$id);
+    expect(options.headers["x-internal-token"]).toBe("test-internal-token");
   });
   it("denies audio access without contacting the recording backend", async () => {
     mocks.get.mockResolvedValue({ ...admin, labels: [] });

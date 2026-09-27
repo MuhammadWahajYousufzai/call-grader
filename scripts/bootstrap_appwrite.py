@@ -50,6 +50,24 @@ def _indexes_of(tables_svc, db_id: str, table_id: str) -> set[str]:
         return set()
 
 
+def wait_available(tables_svc, db_id, table_id, resource, required, attempts=60):
+    from appwrite.query import Query
+
+    keys = {item["key"] for item in required}
+    for _ in range(attempts):
+        response = getattr(tables_svc, "list_" + resource)(
+            database_id=db_id, table_id=table_id, queries=[Query.limit(100)])
+        items = _dictionary(response)[resource]
+        failed = [item["key"] for item in items if item["key"] in keys and item.get("status") in ("failed", "stuck")]
+        if failed:
+            raise RuntimeError(f"{table_id} {resource} provisioning failed: {', '.join(failed)}")
+        available = {item["key"] for item in items if item.get("status") == "available"}
+        if keys <= available:
+            return
+        time.sleep(2)
+    raise RuntimeError(f"{table_id} {resource} missing or unavailable")
+
+
 def ensure_table(tables_svc, db_id: str, table_id: str, spec: dict) -> None:
     from appwrite.exception import AppwriteException
 
@@ -98,7 +116,8 @@ def ensure_table(tables_svc, db_id: str, table_id: str, spec: dict) -> None:
             if "maximum number or size" in msg and attr["key"] in _columns_of(tables_svc, db_id, table_id):
                 continue
             print(f"    ! column {table_id}.{attr['key']}: {e}")
-    time.sleep(2)  # allow Appwrite to finish column provisioning
+    # Index creation requires available columns, not merely accepted creates.
+    wait_available(tables_svc, db_id, table_id, "columns", spec.get("attributes", []))
     from appwrite.enums.tables_db_index_type import TablesDBIndexType
 
     existing_idx = _indexes_of(tables_svc, db_id, table_id)

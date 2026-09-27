@@ -1,178 +1,83 @@
-> Optional Docker fallback. The selected production path is
-> [Appwrite Functions + Sites](APPWRITE_FUNCTIONS.md).
+# Production setup — Appwrite Functions + Sites
 
-# Production setup beside your existing Appwrite
+Use the existing Appwrite at `https://yousufricemill.com`. Create the production
+project when deploying. Keep its current installation and data volumes.
 
-## What runs where
+## 1. Server prerequisites
 
-Use one production Appwrite project for authentication, the database, recordings,
-and the Next.js Site. Run this project's API, worker, and scheduler as Docker
-containers on the **same Docker host** as Appwrite's executor.
+- Functions and Sites enabled; Python `python-3.12` and Site Node 22 available.
+- `_APP_FUNCTIONS_TIMEOUT` permits 900 seconds.
+- Native builds can download Alpine/Python packages; sufficient build disk/RAM.
+- Existing Appwrite hosting DNS/TLS configured for Site domains.
+- Funded OpenAI API account and working Jazz credentials.
 
-The deployment helper connects the API to Appwrite's existing runtime network.
-The Site's server can then reach `http://call-grader-api:8000`. The browser talks
-only to your HTTPS Site. The server checks the Appwrite account's current `admin`
-label before contacting the API with a shared secret.
+The helper checks available Python runtimes and rejects failed builds, missing
+schema, unsafe resource permissions, invalid role scopes and unreadable Appwrite.
 
-```text
-Browser → HTTPS Appwrite Site → private Docker API → Appwrite project
-                                  ↑
-                          worker + scheduler
-                           Jazz and OpenAI
-```
+## 2. Create project and deploy from this repository
 
-No additional public API hostname or reverse proxy is needed for this path.
-Appwrite's existing proxy continues serving its Console and Sites. A reverse
-proxy is simply the server that receives a public HTTPS request and forwards it
-to the correct internal service. If Sites runs on another host, this private
-network path will not work; that setup needs a reachable HTTPS API URL instead.
+Create the production project in Console, then run:
 
-## 1. Create the production project
-
-In `https://yousufricemill.com`, create the project and copy its project ID.
-Create a server API key with read/write access for the database, tables, columns,
-indexes, rows, storage buckets, and files. This key stays on the VPS. Bootstrap
-needs schema and bucket write access; the pipeline needs rows and files access.
-
-Create the reviewer's **project user account**, then give that account the exact
-`admin` label in the Console. A Console administrator login is separate from an
-application account. No public sign-up or browser role editing is provided.
-
-## 2. Configure the backend on the VPS
-
-Requirements: existing Docker Engine and Compose, Python 3, Git, and a running
-Appwrite executor. The scripts do not install, upgrade, or restart Appwrite.
-
-```bash
-git clone https://github.com/MuhammadWahajYousufzai/call-grader.git
-cd call-grader
-python3 scripts/deploy_production.py configure \
-  --endpoint https://yousufricemill.com/v1 \
-  --project-id YOUR_PRODUCTION_PROJECT_ID
-```
-
-The script asks for the Appwrite server key, OpenAI key, Jazz UAN, and Jazz
-password with hidden input. It creates `.env.production` with owner-only
-permissions and generates a shared internal token. This file is ignored by Git.
-It refuses to overwrite an existing file. Existing production files can be
-edited privately; keep dotenv quoting when editing passwords with special
-characters. Model defaults are in `services/backend/app/config/settings.py`;
-override them in `.env.production` when needed.
-
-First inspect the deployment plan:
-
-```bash
-python3 scripts/deploy_production.py deploy --dry-run
-```
-
-Then deploy:
-
-```bash
-python3 scripts/deploy_production.py deploy
-```
-
-The helper reads `OPR_EXECUTOR_NETWORK` from the running Appwrite executor,
-verifies the external network, builds Chromium/FFmpeg into the worker image,
-bootstraps the project's schema and server-only recordings bucket, starts three
-services, and checks readiness plus authorized/unauthorized API access from that
-network. An ambiguous or unavailable network stops deployment. For a known
-single runtime network, you can pass `--runtime-network NETWORK_NAME`.
-
-The API keeps its host port bound to `127.0.0.1`; network access uses its private
-Docker alias. Worker and scheduler have no published ports. All three restart
-automatically. Discovery and processing release at **18:01 Asia/Karachi**, with
-post-18:00 calls included in the following day's batch.
-
-## 3. Connect GitHub in Appwrite Sites
-
-Create the Site inside the same production project, connect this repository's
-`main` branch, and use:
-
-| Setting | Value |
-|---|---|
-| Repository root | `apps/web` |
-| Framework / adapter | Next.js / SSR |
-| Runtime | `node-22` |
-| Install | `npm install -g pnpm@12.6.0 && pnpm install --frozen-lockfile` |
-| Build | `pnpm build` |
-| Output | `.next` |
-| API scopes | `sessions.write` |
-
-Use the HTTPS domain displayed in the Site's Domains tab. Your configured Sites
-base domain determines the generated hostname; the scripts do not guess it.
-You can add a custom hostname such as `calls.yousufricemill.com` through the
-Console, following Appwrite's DNS/certificate instructions.
-
-Configure these Site variables:
-
-| Variable | Value | Secret? |
-|---|---|---|
-| `BACKEND_INTERNAL_URL` | `http://call-grader-api:8000` | No |
-| `INTERNAL_API_TOKEN` | Same value from the VPS `.env.production` | **Yes** |
-| `APP_ORIGIN` | Actual HTTPS Site origin, without a trailing slash | No |
-
-Appwrite injects the Site's project ID and API endpoint. Do not copy Jazz,
-OpenAI, or backend Appwrite keys into the Site. Login uses the Site's scoped
-ephemeral key; account authorization uses the visitor's session.
-
-### Optional automatic Site variable configuration
-
-With the Appwrite CLI installed on the VPS, log in to the production instance:
-
-```bash
+```sh
 appwrite login --endpoint https://yousufricemill.com/v1
-python3 scripts/deploy_production.py configure-site \
-  --site-id YOUR_SITE_ID \
-  --site-origin https://YOUR_ACTUAL_SITE_HOSTNAME
+python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
+python3 scripts/deploy_appwrite.py deploy
 ```
 
-This verifies the Site's framework, adapter, and login scope, and creates or
-updates only the three variables above. It preserves other Site variables and
-does not change the checked-in local Appwrite project link. Add `--dry-run` to
-inspect the intended operation first. Redeploy the Site after configuring its
-variables.
+Hidden prompts collect Jazz/OpenAI credentials. The helper generates the internal
+token and stores `.env.appwrite-production.json` with mode 600 (ignored by Git).
+No permanent Appwrite application API key is needed. Do not overwrite the linked
+local manifest: the helper explicitly targets production using a temporary manifest.
 
-## 4. Verify and update
+Deployment creates six private Functions and one Next.js SSR Site, installs their
+variables/scopes, provisions ten private tables/indexes and the recording bucket,
+seeds settings/rules/agents, checks native tools and API access, builds the Site,
+then enables schedules. Existing call data is preserved. If provisioning or a
+build/check fails before schedules are enabled, fix the reported error and rerun
+`deploy`; schema creation is idempotent. API/bootstrap have no schedule. Bootstrap
+write scopes are removed after setup.
 
-After the Site deployment becomes ready:
+The helper automatically runs resource/runtime verification after deploying.
+A first daytime deployment waits until 18:01 Karachi; later deployments catch up
+missed closed batches. No manual Jazz login, recording download or grading is needed.
 
-1. Signed-out visitors must land on sign-in.
-2. A project account without `admin` must be denied.
-3. An admin account must see reports and the System page, and play a recording.
-4. Removing its `admin` label must deny further page and audio requests.
-5. Sign-out must return to login. Check the next scheduled batch on System.
+## 3. Account, domain and GitHub
 
-For later backend updates:
+Create your project account under **Auth → Users** and assign the exact `admin`
+label. Choose the Site domain, for example `calls.yousufricemill.com`, and configure
+its DNS/TLS with the existing Appwrite hosting setup.
 
-```bash
-git pull --ff-only
-python3 scripts/deploy_production.py deploy
+Connect GitHub repository `MuhammadWahajYousufzai/call-grader`, branch `main`,
+through Appwrite Console. Use root `apps/web` for the Site and root `.` for each
+Function. Exact entrypoints/build commands/scopes are in
+[APPWRITE_FUNCTIONS.md](APPWRITE_FUNCTIONS.md#github-deployments-through-console).
+The helper installs all required variables. Preserve these settings for GitHub
+builds. There is no public backend address or extra reverse proxy to configure:
+the Site uses private Appwrite SDK Function executions.
+
+## 4. Repeatable verification
+
+```sh
+python3 scripts/deploy_appwrite.py verify
+uv run --project services/backend python scripts/deploy_appwrite.py verify --site-url https://calls.yousufricemill.com
 ```
 
-Git-connected Sites can rebuild from subsequent pushes according to their
-production branch settings. Preserve `.env.production` and Docker volumes when
-updating. If you rotate the internal token, rerun `configure-site` and redeploy
-the Site too.
+The first command verifies active builds, private permissions, exact schedules,
+role scopes, variables, all schema/indexes, bucket, API readiness and native tools.
+The second also uses Chromium and creates a temporary project account to test
+anonymous/non-admin denial, admin login, Dashboard/System and immediate denial
+when its admin label is revoked. It deletes that account afterward. It verifies
+private audio playback when a real recording exists; a new empty project reports
+that playback check as skipped. Install Chromium for this optional browser check:
+`uv run --project services/backend playwright install chromium`.
 
-## Appwrite Functions
+These verification commands do not call Jazz or OpenAI. Check the first scheduled
+batch on Dashboard/System to verify production credentials, provider quota and
+real AI results. System failures/backlog must not be mistaken for finished grades.
 
-Appwrite supports background Function executions up to the configured timeout
-(normally 900 seconds); synchronous HTTP Function requests have a 30-second
-limit. The existing worker and scheduler are continuous processes. Deploying
-them as Functions requires bounded invocations, safe coordination between
-concurrent executions, and verified Chromium/FFmpeg packaging. The upstream
-standard Python runtime uses Alpine; that is a different environment from this
-project's verified Debian-based worker. The production runtime has not been
-inspected or tested here. A 15-minute setting alone does not verify compatibility.
+## Updates and recovery
 
-The scripts in this guide deploy the existing Docker pipeline. They do not
-claim to migrate it to Functions. A Functions migration should be tested in a
-separate deployment before switching the live processing schedule.
-
-References:
-
-- [Appwrite execution modes and timeouts](https://appwrite.io/docs/products/functions/execute)
-- [Upstream Python runtime images](https://github.com/open-runtimes/open-runtimes/blob/main/ci/runtimes.toml)
-- [Executor runtime networking](https://github.com/open-runtimes/executor/blob/main/src/Executor/Runner/Docker.php)
-- [Playwright container requirements](https://playwright.dev/python/docs/docker)
-- [Self-hosted Sites domains](https://appwrite.io/docs/advanced/self-hosting/configuration/sites)
+Push GitHub-connected resources for source updates, or rerun the deployment helper
+for resource/variable/schema changes. Rerun verification afterward. Appwrite cron
+runs recover ordinary crashes automatically from durable jobs and checkpoints.
+Back up Appwrite's database/bucket and store private config in a vault.

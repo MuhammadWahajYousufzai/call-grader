@@ -1,4 +1,4 @@
-"""Admin CLI — same services as the scheduler (no duplicated logic)."""
+"""Admin CLI — same services as the Functions (no duplicated logic)."""
 
 from __future__ import annotations
 
@@ -42,9 +42,8 @@ def process_jobs(once: bool = False):
 
 @app.command()
 def retry_failed():
-    from appwrite.query import Query
-
     from app.appwrite import repos
+    from appwrite.query import Query
 
     rows = repos.list_docs("processing_jobs", [Query.equal("status", "FAILED")], limit=100)
     for r in rows:
@@ -56,11 +55,10 @@ def retry_failed():
 def regenerate_report(reporting_date: str):
     import json
 
-    from appwrite.query import Query
-
     from app.appwrite import repos
     from app.config.settings import get_settings
     from app.reporting.compute import compute_report
+    from appwrite.query import Query
 
     s = get_settings()
     calls = repos.list_docs("calls", [Query.equal("reporting_date", reporting_date)], limit=500)

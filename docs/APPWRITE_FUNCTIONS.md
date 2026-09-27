@@ -57,8 +57,8 @@ Office hours are 09:30–18:00. Processing starts at 18:01 Karachi. Calls after
 The local helper reuses the existing private repository `.env` and the linked
 localhost project. Allow at least 8 GB of free disk for native builds. It
 packages source without environment files, builds Functions sequentially,
-removes their completed local build containers, deploys the Site, and stops the old local Docker worker/scheduler before
-enabling Function schedules to avoid duplicate processing.
+removes their completed local Appwrite build containers, deploys the Site, and
+enables Function schedules after verification.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
@@ -66,8 +66,8 @@ uv run --project services/backend python scripts/deploy_appwrite.py deploy --loc
 ```
 
 Appwrite generates the local Site address under `sites.localhost`; use that
-address to test the deployed Site. Docker's port 3000 remains an optional local
-preview. Local Function/Site server calls use `host.docker.internal` to reach
+address to test the deployed Site. Local Function/Site server calls use
+`host.docker.internal` to reach
 the existing local Appwrite API.
 
 ## Initial deployment from your computer
@@ -170,5 +170,5 @@ the dashboard.
 
 Production credentials, project creation, DNS, and the actual production
 execution must be verified on the target instance before declaring it deployed.
-The older Docker deployment helper remains an optional fallback in
-[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md).
+Use the repeatable verification commands in
+[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md#4-repeatable-verification).

@@ -19,7 +19,7 @@ def load_script(name):
     return module
 
 
-deploy = load_script("deploy_production")
+deploy = load_script("deploy_appwrite")
 bootstrap = load_script("bootstrap_appwrite")
 
 
@@ -37,58 +37,74 @@ def test_production_target_rejects_local_or_ambiguous_endpoints(endpoint):
         deploy.validate_target(endpoint, "production-project")
 
 
-def test_config_does_not_overwrite_existing_secrets(tmp_path):
-    path = tmp_path / ".env.production"
+def test_config_does_not_overwrite_existing_secrets(monkeypatch, tmp_path):
+    path = tmp_path / ".env.production.json"
     path.write_text("existing-credential")
-    with pytest.raises(deploy.DeployError):
-        deploy.write_env(path, {"INTERNAL_API_TOKEN": "replacement"})
+    monkeypatch.setattr(deploy.getpass, "getpass", lambda _: "test-secret")
+    with pytest.raises(FileExistsError):
+        deploy.configure(SimpleNamespace(local=False, endpoint="https://example.com/v1", project_id="prod", config=path))
     assert path.read_text() == "existing-credential"
 
 
-def test_config_error_does_not_expose_malformed_credentials(monkeypatch, tmp_path):
-    path = tmp_path / ".env.production"
+def test_malformed_config_is_private_and_does_not_expose_credentials(tmp_path):
+    path = tmp_path / ".env.production.json"
     path.write_text("malformed-private-credential")
-    monkeypatch.setattr(deploy.subprocess, "run", Mock(return_value=SimpleNamespace(
-        returncode=1, stderr="dotenv error: malformed-private-credential", stdout="")))
+    path.chmod(0o600)
     with pytest.raises(deploy.DeployError) as error:
-        deploy.configuration(SimpleNamespace(env_file=path))
+        deploy.configuration(SimpleNamespace(config=path, local=False))
     assert "malformed-private-credential" not in str(error.value)
 
 
-def test_runtime_network_ambiguity_stops_deployment(monkeypatch):
-    containers = [{"Config": {"Image": "openruntimes/executor:0.29.0", "Env": [f"OPR_EXECUTOR_NETWORK={name}"]}}
-                  for name in ("runtime-a", "runtime-b")]
-    mock_run = Mock(side_effect=["container-a\ncontainer-b", json.dumps(containers)])
-    monkeypatch.setattr(deploy, "run", mock_run)
-    with pytest.raises(deploy.DeployError, match="Cannot select one"):
-        deploy.runtime_network({}, None)
-    assert mock_run.call_count == 2
+def test_world_readable_config_is_rejected(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text("{}")
+    path.chmod(0o644)
+    with pytest.raises(deploy.DeployError, match="owner-only"):
+        deploy.configuration(SimpleNamespace(config=path, local=False))
 
 
-def test_configure_site_selects_production_preserves_other_variables_and_hides_token(monkeypatch, capsys):
-    values = {"APPWRITE_ENDPOINT": "https://production.example.com/v1", "APPWRITE_PROJECT_ID": "production-project",
-              "APPWRITE_API_KEY": "fake-key", "OPENAI_API_KEY": "fake-openai", "JAZZ_UAN": "fake-uan",
-              "JAZZ_PASSWORD": "fake-password", "INTERNAL_API_TOKEN": "private-test-token"}
-    monkeypatch.setattr(deploy, "configuration", lambda args: (values, [], {}))
+def test_variables_preserve_unrelated_values_and_use_distinct_resource_ids(monkeypatch):
     calls = []
+    def fake_command(args, *a, **kw):
+        calls.append(args)
+        return {"variables": [{"key": "INTERNAL_API_TOKEN", "$id": "existing"},
+                              {"key": "UNRELATED", "$id": "untouched"}]}
+    monkeypatch.setattr(deploy, "command", fake_command)
+    for resource_id in ("api", "site"):
+        deploy.variables("functions", resource_id, {"INTERNAL_API_TOKEN": "secret", "APPWRITE_ENDPOINT": "endpoint"}, None, {}, ())
+    mutations = [args for args in calls if args[1] != "list-variables"]
+    assert len(mutations) == 4
+    assert all("--secret" in args and "untouched" not in args for args in mutations)
+    assert mutations[0][mutations[0].index("--variable-id") + 1] == "existing"
+    assert mutations[1][mutations[1].index("--variable-id") + 1] != mutations[3][mutations[3].index("--variable-id") + 1]
 
-    def fake_run(command, env, **kwargs):
-        calls.append((command, env))
-        if command[2] == "get":
-            return json.dumps({"framework": "nextjs", "adapter": "ssr", "scopes": ["sessions.write"]})
-        if command[2] == "list-variables":
-            return json.dumps({"variables": [{"key": "INTERNAL_API_TOKEN", "$id": "existing-token"}]})
-        return "{}"
 
-    monkeypatch.setattr(deploy, "run", fake_run)
-    deploy.configure_site(SimpleNamespace(site_id="production-site", site_origin="https://calls.example.com/", dry_run=False))
-    mutations = [command for command, _ in calls if command[2] in ("create-variable", "update-variable")]
-    assert len(mutations) == 3
-    token = next(command for command in mutations if "INTERNAL_API_TOKEN" in command)
-    assert token[2] == "update-variable" and "existing-token" in token and "--secret" in token
-    assert all(env["APPWRITE_PROJECT_ID"] == "production-project" for _, env in calls)
-    assert all(env["APPWRITE_ENDPOINT"] == "https://production.example.com/v1" for _, env in calls)
-    assert "private-test-token" not in capsys.readouterr().out
+def test_schema_waits_for_columns_before_creating_indexes(monkeypatch):
+    tables = Mock()
+    tables.list_columns.side_effect = [{"columns": [{"key": "name", "status": "processing"}]},
+                                      {"columns": [{"key": "name", "status": "available"}]}]
+    monkeypatch.setattr(bootstrap.time, "sleep", Mock())
+    bootstrap.wait_available(tables, "db", "agents", "columns", [{"key": "name"}], attempts=2)
+    assert tables.list_columns.call_count == 2
+
+
+def test_failed_provisioning_fails_immediately(monkeypatch):
+    tables = Mock()
+    tables.list_columns.return_value = {"columns": [{"key": "name", "status": "failed"}]}
+    monkeypatch.setattr(bootstrap.time, "sleep", Mock())
+    with pytest.raises(RuntimeError, match="provisioning failed"):
+        bootstrap.wait_available(tables, "db", "agents", "columns", [{"key": "name"}])
+    bootstrap.time.sleep.assert_not_called()
+
+
+def test_function_cli_updates_preserve_scopes_and_private_permissions():
+    template = json.loads((SCRIPTS.parent / "appwrite.config.json").read_text())
+    function = template["functions"][3]
+    args = deploy.function_metadata(function)
+    assert args.count("--scopes") == len(function["scopes"])
+    assert "--schedule" in args and "--commands" in args and "--deployment-retention" in args
+    with pytest.raises(deploy.DeployError, match="must remain empty"):
+        deploy.function_metadata({**function, "execute": ['any']})
 
 
 def test_new_recordings_bucket_has_no_client_access():
@@ -113,3 +129,29 @@ def test_private_recordings_bucket_is_left_unchanged():
     storage.get_bucket.return_value = {"name": "Recordings", "$permissions": [], "fileSecurity": False}
     bootstrap.ensure_bucket(storage, "call_recordings")
     storage.update_bucket.assert_not_called()
+
+
+def test_api_readiness_returns_failure_status_when_appwrite_is_unavailable(monkeypatch):
+    from app.main import ready, repos
+    monkeypatch.setattr(repos, "list_docs", Mock(side_effect=RuntimeError("unavailable")))
+    response = ready()
+    assert response.status_code == 503
+    assert json.loads(response.body)["ok"] is False
+
+
+def test_verification_rejects_public_function_before_any_pipeline_work(monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    import verify_appwrite
+    current = {"enabled": True, "deploymentId": "ready-build", "execute": ['any']}
+    mocked = Mock(return_value=current)
+    monkeypatch.setattr(verify_appwrite, "command", mocked)
+    with pytest.raises(verify_appwrite.DeployError, match="must be private"):
+        verify_appwrite.verify_resources(SCRIPTS, {}, ())
+    assert mocked.call_count == 1
+
+
+def test_fresh_schema_verification_cannot_target_production(monkeypatch):
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    import verify_bootstrap
+    with pytest.raises(verify_bootstrap.DeployError, match="restricted"):
+        verify_bootstrap.verify_fresh_schema(SimpleNamespace(local=False))

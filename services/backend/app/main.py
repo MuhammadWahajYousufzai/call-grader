@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from appwrite.query import Query
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi import Query as FQuery
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.appwrite import client as aw
@@ -48,14 +48,14 @@ def live() -> dict:
 
 
 @app.get("/health/ready")
-def ready() -> dict:
+def ready():
     try:
         repos.list_docs("app_settings", limit=1)
         appwrite_ok = True
     except Exception as e:
         appwrite_ok = False
         detail = str(e)[:300]
-        return {"ok": False, "appwrite": False, "detail": detail}
+        return JSONResponse({"ok": False, "appwrite": False, "detail": detail}, status_code=503)
     return {"ok": True, "appwrite": appwrite_ok}
 
 

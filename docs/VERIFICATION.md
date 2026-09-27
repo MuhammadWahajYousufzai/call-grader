@@ -1,7 +1,36 @@
 # End-to-end verification
 
+Current deployment architecture: Appwrite Functions + Sites. Docker application
+files mentioned in the historical evidence below have been removed. Use
+[production setup](PRODUCTION_SETUP.md) for current deployment/verification commands.
+
 Verified against the live Jazz account and local Appwrite on 25–26 September 2026.
 Credentials came from the existing environment and were not printed.
+
+## September 27 — deployment consolidation
+
+- Removed all three application Compose files, the three application Dockerfiles,
+  `.dockerignore`, the Docker deployment helper and standalone scheduler/worker
+  daemon entrypoints. Shared worker phase code remains in use by Functions.
+- Removed frontend HTTP-backend fallback; private Function ID/token are required.
+- Added `deploy_appwrite.py verify`, resource/schema/scope/schedule/native checks,
+  an optional temporary-account browser access check, and optional disposable
+  local first-install schema verification. Deployment checks resources before
+  enabling schedules and automatically repeats verification afterward.
+- Column provisioning now waits for availability before index creation. API
+  readiness returns HTTP 503 when Appwrite cannot be read, and asynchronous
+  verification consumes the actual readiness result.
+- Gates executed today: **64 backend tests**, **19 frontend tests**, Ruff,
+  TypeScript, Next.js production build, Python compilation, shell syntax and
+  secret-free Function/Site source packaging passed.
+- Live re-verification of these latest changes is **pending**: Docker Desktop
+  is stopped and macOS is requesting administrator approval to start it; local
+  Appwrite refuses connections. Fresh disposable schema and new browser helpers
+  have not yet been run against the server. Earlier live Functions/Site evidence
+  below applies to the preceding deployment.
+- The last actual AI execution failed with OpenAI `credit_balance_exhausted`.
+  Funded API quota and a fresh real AI result must be confirmed before claiming
+  end-to-end production readiness. No generated grades were fabricated.
 
 ## Inherited defects corrected
 

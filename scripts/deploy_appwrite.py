@@ -10,18 +10,55 @@ import argparse
 import getpass
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from hashlib import sha256
 from pathlib import Path
-
-from deploy_production import DeployError, validate_target
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_FILE = ROOT / ".env.appwrite-production.json"
+
+
+class DeployError(Exception):
+    pass
+
+
+def validate_target(endpoint: str, project: str) -> None:
+    parsed = urlparse(endpoint)
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username
+            or parsed.password or parsed.query or parsed.fragment or parsed.path != "/v1"
+            or parsed.hostname in ("localhost", "127.0.0.1", "::1")
+            or parsed.hostname.endswith(".localhost")):
+        raise DeployError("Use the production HTTPS Appwrite endpoint ending in /v1.")
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,35}", project):
+        raise DeployError("Enter the production Appwrite project ID from the Console.")
+
+
+def configuration(args):
+    if args.config.stat().st_mode & 0o077:
+        raise DeployError("Private configuration must have owner-only permissions: chmod 600 " + args.config.name)
+    try:
+        values = json.loads(args.config.read_text())
+        required = ("APPWRITE_ENDPOINT", "APPWRITE_PROJECT_ID", "OPENAI_API_KEY",
+                    "JAZZ_UAN", "JAZZ_PASSWORD", "INTERNAL_API_TOKEN")
+        if any(not isinstance(values.get(key), str) or not values[key].strip() for key in required):
+            raise ValueError
+    except (ValueError, TypeError):
+        raise DeployError("Private configuration is invalid or missing required credentials.") from None
+    endpoint, project = values["APPWRITE_ENDPOINT"], values["APPWRITE_PROJECT_ID"]
+    if args.local:
+        local_project = json.loads((ROOT / "appwrite.config.json").read_text())["projectId"]
+        if endpoint != "http://localhost/v1" or project != local_project:
+            raise DeployError("--local must target the linked localhost development project.")
+    else:
+        validate_target(endpoint, project)
+    return values, {**os.environ, "APPWRITE_ENDPOINT": endpoint, "APPWRITE_PROJECT_ID": project}
 
 
 def command(args, directory, env, *, json_output=False, private_values=()):
@@ -141,8 +178,6 @@ def execute(function_id, body, directory, env, private_values, *, readiness=Fals
         if result["status"] == "completed":
             if not 200 <= result.get("responseStatusCode", 0) < 300:
                 raise DeployError(f"{function_id} returned an unsuccessful response.")
-            if readiness:
-                return {"status": "SUCCESS"}
             response_body = result.get("responseBody")
             if response_body:
                 return json.loads(response_body)
@@ -172,15 +207,8 @@ def execute(function_id, body, directory, env, private_values, *, readiness=Fals
 
 
 def deploy(args):
-    values = json.loads(args.config.read_text())
+    values, env = configuration(args)
     endpoint, project = values["APPWRITE_ENDPOINT"], values["APPWRITE_PROJECT_ID"]
-    if args.local:
-        local_project = json.loads((ROOT / "appwrite.config.json").read_text())["projectId"]
-        if endpoint != "http://localhost/v1" or project != local_project:
-            raise DeployError("--local must target the linked localhost development project.")
-    else:
-        validate_target(endpoint, project)
-    env = {**os.environ, "APPWRITE_ENDPOINT": endpoint, "APPWRITE_PROJECT_ID": project}
     private_values = tuple(values.values())
     template = json.loads((ROOT / "appwrite.config.json").read_text())
     with tempfile.TemporaryDirectory(prefix="call-grader-deploy-") as temporary:
@@ -244,7 +272,9 @@ def deploy(args):
             if not all(check.get(key) for key in ("pipeline_import", "chromium", "ffmpeg", "ffprobe")):
                 raise DeployError("Native runtime check did not pass; schedules remain paused.")
         print("Checking API readiness before deploying the Site…", flush=True)
-        execute("call-grader-api", {}, directory, env, private_values, readiness=True)
+        ready = execute("call-grader-api", {}, directory, env, private_values, readiness=True)
+        if ready.get("ok") is not True or ready.get("appwrite") is not True:
+            raise DeployError("API cannot read Appwrite; schedules remain paused.")
         site_id = config["sites"][0]["$id"]
         command(["push", "site", "--site-id", site_id, "--no-code", "--force"], directory, env, private_values=private_values)
         variables("sites", site_id, {"APPWRITE_BACKEND_FUNCTION_ID": "call-grader-api",
@@ -256,13 +286,8 @@ def deploy(args):
         # CLI push currently omits Site scopes; restore the full server settings
         # after the code push before admitting authenticated traffic.
         command(site_metadata(config["sites"][0]), directory, env, private_values=private_values)
-        if args.local:
-            print("Stopping the local Docker worker/scheduler before enabling Function schedules…", flush=True)
-            stopped = subprocess.run(["docker", "compose", "-f", str(ROOT / "docker-compose.dev.yml"),
-                                      "stop", "backend-worker", "backend-scheduler"],
-                                     capture_output=True, text=True, check=False)
-            if stopped.returncode:
-                raise DeployError("Could not stop the old local worker/scheduler; Function schedules remain paused.")
+        from verify_appwrite import verify_resources
+        verify_resources(directory, env, private_values, paused=True)
         for function in template["functions"]:
             if function["schedule"]:
                 command(function_metadata(function), directory, env, private_values=private_values)
@@ -280,22 +305,35 @@ def deploy(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["configure", "deploy"])
+    parser.add_argument("action", choices=["configure", "deploy", "verify"])
     parser.add_argument("--config", type=Path)
     parser.add_argument("--local", action="store_true", help="Target only the linked localhost development project")
     parser.add_argument("--function-id", action="append", help="Build only selected Functions; all other Functions must have active deployments")
     parser.add_argument("--skip-function-builds", action="store_true", help="Resume local verification after Function builds are already active")
     parser.add_argument("--endpoint", default="https://yousufricemill.com/v1")
     parser.add_argument("--project-id")
+    parser.add_argument("--fresh-schema", action="store_true", help="Also test disposable fresh schema in the local project")
+    parser.add_argument("--site-url", help="Also verify browser access using a temporary account (requires Playwright)")
     args = parser.parse_args()
     args.config = args.config or (ROOT / ".env.appwrite-local.json" if args.local else PRIVATE_FILE)
     if args.skip_function_builds and not args.local:
         raise SystemExit("--skip-function-builds is only available for local deployment recovery.")
     try:
-        configure(args) if args.action == "configure" else deploy(args)
+        if args.action == "configure":
+            configure(args)
+        elif args.action == "verify":
+            from verify_appwrite import verify
+            verify(args)
+        else:
+            deploy(args)
+            from verify_appwrite import verify
+            verify(args)
     except (DeployError, FileNotFoundError, FileExistsError, KeyError, ValueError) as exc:
         raise SystemExit(str(exc)) from None
 
 
 if __name__ == "__main__":
+    # Verification helpers import this module; share its exception type when the
+    # entrypoint is executed as a script rather than imported as a module.
+    sys.modules["deploy_appwrite"] = sys.modules[__name__]
     main()

@@ -123,14 +123,14 @@ def test_api_readiness_retries_only_runtime_startup_failure(monkeypatch):
         {"$id": "cold"},
         {"status": "failed", "errors": "Timed out waiting for runtime."},
         {"$id": "warm"},
-        {"status": "completed", "responseStatusCode": 200},
+        {"status": "completed", "responseStatusCode": 200, "logs": 'FUNCTION_RESULT_JSON={"ok":true,"appwrite":true}'},
     ])
     commands = []
     def run(args, *unused, **kwargs):
         commands.append(args)
         return next(responses)
     monkeypatch.setattr(module, "command", run)
-    assert module.execute("api", {}, scripts, {}, (), readiness=True) == {"status": "SUCCESS"}
+    assert module.execute("api", {}, scripts, {}, (), readiness=True) == {"ok": True, "appwrite": True}
     starts = [args for args in commands if "create-execution" in args]
     assert len(starts) == 2
     assert all(args[-4:] == ["--path", "/health/ready", "--method", "GET"] for args in starts)

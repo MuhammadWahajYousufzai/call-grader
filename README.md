@@ -1,125 +1,52 @@
 # Yousuf Rice — Call Grader & Coaching AI
 
-Internal web app that automatically reviews every customer call:
+Autonomous call review: Jazz discovery → private recordings → transcription →
+Roman Urdu → AI grading/coaching → daily dashboard. The owner reviews results.
 
-```
-Jazz portal → deterministic Playwright → metadata + recording
-→ Appwrite (calls + private audio + durable jobs)
-→ OpenAI diarized transcription → Roman Urdu normalization
-→ Call Grader (Agents SDK) → deterministic daily aggregation
-→ Next.js dashboard
-```
+## Deployment
 
-AI is used only for transcription/understanding/grading — never for clicking around Jazz.
+**Appwrite Functions + Appwrite Sites in one project.** Appwrite provides
+schedules, accounts, database, private storage and hosting. No separate API,
+worker or scheduler containers are deployed by this repository.
 
-## Prerequisites
+- [Production checklist and commands](docs/PRODUCTION_SETUP.md)
+- [Functions, schedules and GitHub settings](docs/APPWRITE_FUNCTIONS.md)
+- [Local setup](docs/LOCAL_SETUP.md)
+- [Authentication and Sites](docs/APPWRITE_SITES.md)
+- [Verification evidence](docs/VERIFICATION.md)
 
-- Docker (Appwrite 2.3.0 runs in `/Desktop/appwrite`)
-- Python 3.12+ with `uv`, Node 22+ with `pnpm`, `ffmpeg`
-- OpenAI API key, Jazz UAN/password, local Appwrite project + API key
+Office hours are 09:30–18:00 Karachi. Discovery starts daily at **18:01**;
+calls after 18:00 join the following day's batch. Appwrite watchdogs retry
+missed discovery, interrupted jobs and expired leases automatically.
 
-## Run Functions + Sites locally
+## Local Functions + Sites
 
-With the Appwrite CLI logged in and this development project linked, use:
+Keep the existing local Appwrite running, log into its CLI and use the linked
+project. Configure the private `.env` using `.env.example` if needed.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --local
+make deploy-local
+make verify-local
 ```
 
-This uses the existing private `.env`, deploys Functions and the Next.js Site,
-verifies native tools, and enables Appwrite schedules. Open the generated Site
-URL under `sites.localhost`. Give your project account the exact `admin` label.
-See [Functions setup](docs/APPWRITE_FUNCTIONS.md) for runtime prerequisites.
+If `.env.appwrite-local.json` already exists, skip `configure`. Open the generated
+Site under `sites.localhost`; only an account with the exact `admin` label has
+access. Appwrite itself uses Docker; this repository has no Docker app deployment.
 
-The following numbered setup steps describe the Docker/developer alternative.
-
-## 1. Local Appwrite 2.3 setup
-
-Appwrite is already running at `http://localhost/v1` (see `docker ps` in `/Desktop/appwrite/appwrite`).
-Create/get a project + API key (scopes: databases, storage, users read):
-
-```bash
-appwrite whoami
-appwrite list-projects   # -> project id, e.g. 6ab64644002bdf0b5ed2
-```
-
-In the Appwrite Console (`http://localhost`), create an API key for that project and copy it.
-
-## 2. .env setup
-
-```bash
-cp .env.example .env
-# fill: APPWRITE_PROJECT_ID, APPWRITE_API_KEY,
-#       OPENAI_API_KEY, JAZZ_UAN, JAZZ_PASSWORD, INTERNAL_API_TOKEN (random string)
-```
-
-No `NEXT_PUBLIC_*` secret may ever hold a server key. Only endpoint + project id are public.
-
-## 3. Appwrite bootstrap (idempotent, never destroys data)
-
-```bash
-cd services/backend && uv sync
-uv run python ../../scripts/bootstrap_appwrite.py
-```
-
-Creates database `call_grader`, 10 tables + indexes, private `call_recordings` bucket,
-seeds agents (Saima/Kiran) and default business rules.
-
-## 4. Automatic Jazz ingestion
-
-Set `JAZZ_UAN` and `JAZZ_PASSWORD` in `.env`, then start the worker and scheduler.
-Playwright logs in, discovers the dated inbound and outbound CDRs, and downloads
-eligible recordings automatically. Office hours are 09:30–18:00 Karachi; each
-day's batch starts at 18:01. A first morning start waits until 18:01, then ingests
-the day's calls through 18:00. Later runs resume from the newest persisted Jazz
-call with overlap and include the previous day's calls after 18:00. Startup
-catch-up retries missed closed batches. `sync-jazz` is an optional admin command;
-the worker holds today's queued jobs until the 18:01 release.
-
-## 5. Running all services (4 terminals)
-
-```bash
-make api        # FastAPI :8000
-make worker     # pipeline worker (Playwright + AI)
-make scheduler  # 18:01 PKT sync + catch-up + retention
-pnpm --dir apps/web dev   # Next.js :3000
-```
-
-Or `docker compose -f docker-compose.dev.yml up --build`.
-
-## 6. Tests
-
-Dashboard access requires an Appwrite project account with the server-managed
-`admin` label. Production frontend hosting uses **Appwrite Sites (Next.js SSR)**;
-see [authentication and Sites deployment](docs/APPWRITE_SITES.md).
-
-```bash
-cd services/backend && uv run pytest -q
-pnpm --dir apps/web test
-```
-
-## 7. Production deployment — Appwrite Functions + Sites
-
-Use the existing production Appwrite project for the backend Functions, native
-schedules, database, recordings, account authentication, and Next.js Site.
-See [Functions + Sites setup](docs/APPWRITE_FUNCTIONS.md) for the automatic
-Appwrite CLI deployment helper and GitHub Console settings.
+## Tests
 
 ```sh
-python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-python3 scripts/deploy_appwrite.py deploy
+make test
+make lint
+pnpm --dir apps/web exec tsc --noEmit
+pnpm --dir apps/web build
 ```
 
-Discovery starts daily at 18:01 Karachi; Appwrite cron executions recover missed
-runs and queued processing. The Site calls the private API Function through the
-Server SDK. No additional backend reverse proxy is needed. The Docker helpers
-remain available for local development and an optional deployment fallback.
+## Operations
 
-## 8. Troubleshooting
-
-- `JAZZ_PAGE_CHANGED` on System page → inspect the portal change with the optional
-  `jazz_inspect.py` diagnostic and update the adapter after verification.
-- Backlog growing → check OpenAI key/quota on System page; recordings stay safe and retry automatically.
-- Audio 404 after 15 days → expected: transcript/grade/report retained, raw audio deleted.
-- See `docs/OPERATIONS.md` for retry/regen/backup procedures.
+The System page shows discovery, retry/backlog and scheduling state. OpenAI
+requires a funded API account; exhausted quota leaves durable jobs queued with
+backoff. Real recordings remain private. Audio is deleted after 15 days once
+transcription no longer needs it; transcripts, grades and reports are retained.
+See [operations](docs/OPERATIONS.md).

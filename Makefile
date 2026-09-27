@@ -1,34 +1,26 @@
-.PHONY: help bootstrap dev api worker scheduler web test jazz-inspect sync-jazz lint
+.PHONY: help deploy-local verify-local configure-production deploy-production verify-production test lint
 
 help:
-	@echo "Targets: bootstrap dev api worker scheduler web test jazz-inspect sync-jazz lint"
+	@echo "Targets: deploy-local verify-local configure-production deploy-production verify-production test lint"
 
-bootstrap:
-	cd services/backend && uv sync && uv run python ../../scripts/bootstrap_appwrite.py
+deploy-local:
+	uv run --project services/backend python scripts/deploy_appwrite.py deploy --local
 
-dev:
-	@echo "Run: pnpm --dir apps/web dev  +  backend api/worker/scheduler in separate terminals"
+verify-local:
+	uv run --project services/backend python scripts/deploy_appwrite.py verify --local
 
-api:
-	cd services/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+configure-production:
+	python3 scripts/deploy_appwrite.py configure
 
-worker:
-	cd services/backend && uv run python -m app.jobs.worker
+deploy-production:
+	python3 scripts/deploy_appwrite.py deploy
 
-scheduler:
-	cd services/backend && uv run python -m app.jobs.scheduler
-
-web:
-	pnpm --dir apps/web dev
+verify-production:
+	python3 scripts/deploy_appwrite.py verify
 
 test:
-	cd services/backend && uv run pytest -q
+	uv run --project services/backend pytest services/backend/tests -q
+	pnpm --dir apps/web test
 
 lint:
-	cd services/backend && uv run ruff check app tests ../../scripts
-
-jazz-inspect:
-	cd services/backend && uv run python ../../scripts/jazz_inspect.py
-
-sync-jazz:
-	cd services/backend && uv run python ../../scripts/cli.py sync-jazz
+	uv run --project services/backend ruff check services/backend/app services/backend/tests infra/appwrite scripts --config services/backend/pyproject.toml

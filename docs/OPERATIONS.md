@@ -1,11 +1,11 @@
 # Operations
 
-Office hours are 09:30–18:00 Asia/Karachi. The scheduler releases each day's
+Office hours are 09:30–18:00 Asia/Karachi. The discovery Function releases each day's
 Jazz discovery and processing batch at 18:01. Calls after 18:00 are included in
 the following day's 18:01 batch. Morning startup does not process today's calls.
 Startup and hourly checks retry only missed closed batches, using the source
 cursor with overlap; successful batches are not rediscovered throughout the day.
-The worker recovers stale leases and incomplete call checkpoints on startup.
+The worker recovers stale leases and incomplete call checkpoints on each scheduled execution.
 Routine operation requires only opening the dashboard.
 
 The System page exposes Jazz authentication, page, download, and job failures.

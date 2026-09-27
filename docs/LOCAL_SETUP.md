@@ -1,25 +1,31 @@
 # Local setup
 
-## Appwrite Functions + Sites
+Run the same Functions + Sites architecture as production on the existing local
+Appwrite at `http://localhost/v1`. Start Docker Desktop because it hosts Appwrite.
+The repository does not deploy separate application containers.
 
-Use the [local Functions deployment](APPWRITE_FUNCTIONS.md#run-the-same-deployment-locally-first)
-to run the production architecture on the existing local Appwrite. The helper
-deploys the Functions and Site and enables their schedules after verification.
-The old Docker worker/scheduler are stopped to prevent duplicate processing.
+```sh
+uv run --project services/backend python scripts/deploy_appwrite.py configure --local
+make deploy-local
+make verify-local
+```
 
-## Docker/developer alternative
+Skip `configure` if the private `.env.appwrite-local.json` already exists. The
+helper imports existing `.env` credentials, checks the linked local project,
+packages source without secrets, builds Functions/Site, provisions schema, verifies
+runtime tools and enables schedules. Allow at least 8 GB of free build disk.
 
-See README steps 1–5. Checklist:
+Open the generated Site address under `sites.localhost`. Give the project account
+the exact `admin` label. Local runtime calls reach Appwrite using
+`http://host.docker.internal/v1`.
 
-1. `docker ps` shows `appwrite` healthy on `:80` (repo at `/Desktop/appwrite/appwrite`).
-2. `cp .env.example .env` and fill Appwrite project/key, OpenAI key, Jazz creds, `INTERNAL_API_TOKEN`.
-3. `cd services/backend && uv sync && uv run python ../../scripts/bootstrap_appwrite.py`.
-4. `uv run pytest -q` green.
-5. Start `make api`, `make worker`, and `make scheduler` in separate terminals,
-   then `pnpm --dir apps/web dev`. The scheduler logs into Jazz with `.env`
-   credentials and starts today's batch at 18:01 Karachi. A first morning run
-   waits until then; a restart catches up any missed closed batches. Later runs
-   resume from the persisted call cursor and include the prior day's post-18:00
-   calls. The worker resumes incomplete
-   recordings and AI jobs automatically.
-6. Open `http://localhost:3000/dashboard`.
+For browser access verification:
+
+```sh
+uv run --project services/backend python scripts/deploy_appwrite.py verify --local --fresh-schema --site-url http://YOUR_SITE.sites.localhost
+```
+
+The browser check creates and removes a temporary account. `--fresh-schema` also
+creates disposable database/bucket resources, checks first-install provisioning
+and repeat-safe seeds, then deletes those resources. Existing users, calls and
+recordings are preserved. See [production setup](PRODUCTION_SETUP.md) for exact checks.

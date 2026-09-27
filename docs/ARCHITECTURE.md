@@ -24,7 +24,7 @@ Next.js BFF → owner dashboard (Appwrite Auth, private audio proxy)
 
 - Jazz down ≠ OpenAI pipeline broken (queued jobs keep processing).
 - OpenAI down ≠ Jazz downloader broken (recordings stay safe, jobs retry with backoff).
-- Next.js offline ≠ ingestion stopped (workers/scheduler are separate processes).
+- Next.js offline ≠ ingestion stopped (Functions and Appwrite cron run independently).
 - Worker restart ≠ progress lost (per-call checkpoint + `RESUME_FROM` map + job leases with stale recovery).
 
 ## Key invariants

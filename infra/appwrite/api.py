@@ -27,5 +27,7 @@ async def main(context):
             except Exception as exc:
                 context.error(f"API service failed: {type(exc).__name__}: {exc}")
                 return context.res.json({"error": "Backend service unavailable"}, 503)
+        if context.req.path == "/health/ready":
+            context.log("FUNCTION_RESULT_JSON=" + response.text)
         return context.res.text(response.text, response.status_code,
                                 {"content-type": response.headers.get("content-type", "application/json")})

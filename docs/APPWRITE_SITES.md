@@ -89,22 +89,13 @@ not require pushing this local project configuration to production. The
 `scripts/prepare_appwrite_site.py` source packager remains available for optional
 manual uploads; GitHub deployment builds directly from the tracked frontend.
 
-## Verified locally on September 26
+## Verification
 
-- Anonymous dashboard/report/call requests: redirect to login.
-- Anonymous audio: HTTP 401.
-- Non-admin login, including a forged `labels: ["admin"]` body: HTTP 403; no cookie.
-- Admin login: HTTP 200; real September 25 report visible.
-- Admin label removed: dashboard redirects to denied login; audio returns HTTP 403.
-- Frontend tests: 15 pass. Backend tests: 32 pass; Ruff passes.
-- Next.js production build and TypeScript pass.
-
-The linked local development project is authenticated. The production Docker
-image passed live admin login, non-admin rejection, secure/HTTP-only cookie,
-protected-page/audio, and direct backend-token checks against local Appwrite.
-Temporary verification accounts were deleted afterwards. This September 26
-verification used the Docker frontend; Appwrite-hosted verification is recorded
-separately in [VERIFICATION.md](VERIFICATION.md).
+The deployed local Appwrite Site has been checked for anonymous/non-admin denial,
+admin Dashboard/System/report access, private playback and immediate admin-label
+revocation. Repeat the browser checks using `deploy_appwrite.py verify --site-url`
+as documented in [production setup](PRODUCTION_SETUP.md). Tests and verification
+history are recorded in [VERIFICATION.md](VERIFICATION.md).
 
 ## References
 
