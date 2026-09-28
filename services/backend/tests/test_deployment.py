@@ -176,7 +176,24 @@ def test_local_key_swap_is_refreshed_from_private_env(monkeypatch, tmp_path):
     (tmp_path / 'appwrite.config.json').write_text(json.dumps({'projectId': 'local'}))
     (tmp_path / '.env').write_text('GEMINI_API_KEY=new-test-key\nGEMINI_REQUESTS_PER_MINUTE=3\n')
     monkeypatch.setattr(deploy, 'ROOT', tmp_path)
-    values, _ = deploy.configuration(SimpleNamespace(local=True, config=path))
+    values, _ = deploy.configuration(SimpleNamespace(local=True, config=path, flash_model='gemini-2.5-flash'))
+    assert values['GEMINI_GRADING_MODEL'] == 'gemini-2.5-flash'
+    assert values['GEMINI_ROMANIZER_MODEL'] == 'gemini-2.5-flash'
     assert values['GEMINI_API_KEY'] == 'new-test-key'
     assert values['GEMINI_REQUESTS_PER_MINUTE'] == '3'
     assert json.loads(path.read_text())['GEMINI_API_KEY'] == 'old-test-key'
+
+
+def test_fresh_schema_uses_bounded_varchar_for_indexed_strings(monkeypatch):
+    from app.appwrite.schema import TABLES
+
+    tables = Mock()
+    tables.list_columns.return_value = {'columns': []}
+    tables.list_indexes.return_value = {'indexes': []}
+    monkeypatch.setattr(bootstrap, 'wait_available', lambda *args, **kwargs: None)
+    bootstrap.ensure_table(tables, 'disposable', 'agents', TABLES['agents'])
+    attributes = [call.kwargs for call in tables.create_varchar_column.call_args_list]
+    assert {item['key'] for item in attributes} == {'name', 'jazz_identifier', 'jazz_extension'}
+    assert next(item['size'] for item in attributes if item['key'] == 'jazz_identifier') == 128
+    tables.create_text_column.assert_not_called()
+    tables.create_index.assert_called_once()

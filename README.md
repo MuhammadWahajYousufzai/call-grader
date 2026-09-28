@@ -27,8 +27,8 @@ project. Configure the private `.env` using `.env.example` if needed.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-make deploy-local
-make verify-local
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused --flash-model gemini-2.5-flash
+uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
 ```
 
 If `.env.appwrite-local.json` already exists, skip `configure`. Open the generated

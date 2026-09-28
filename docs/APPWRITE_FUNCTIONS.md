@@ -58,7 +58,7 @@ The local helper reuses the existing private repository `.env` and the linked
 localhost project. Allow at least 8 GB of free disk for native builds. It
 packages source without environment files, builds Functions sequentially,
 removes their completed local Appwrite build containers, deploys the Site, and
-enables Function schedules after verification.
+enables Function schedules after verification. Pass `--paused --flash-model gemini-2.5-flash` to deploy the verified Flash model while leaving the workload disabled for review.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local

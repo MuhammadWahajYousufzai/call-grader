@@ -1,3 +1,27 @@
+## September 28 paused local deployment and fresh-schema repair
+
+Six Function builds and the Site build passed. Private resource/schema/scope
+checks, API readiness, and Worker/Sync/Catch-up native runtime checks passed.
+Four scheduled workload Functions were left disabled with no schedules. The
+2.5 Flash override is configured on the local Worker. Browser verification passed
+admin sign-in, access denial, playback and immediate label revocation. The
+corrected bootstrap Function is active with `databases.read` only.
+
+Disposable first-install provisioning exposed an index failure because bootstrap
+created indexed columns as unbounded TEXT. The new VARCHAR rule passed all ten
+tables, indexes, private bucket, seeds and repeat-safe bootstrap. The test deleted
+its own database/bucket afterward. No full workload or business result rows were
+modified.
+
+## September 28 alternative Flash test
+
+`gemini-2.5-flash` completed Roman Urdu normalization (16 segments), structured
+grading (8.8/10) and daily coaching using the saved real-call transcript. The grader flagged
+incorrect speaker attribution in segments 10–13; its 8.8/10 score needs review. No full
+workload or customer result rows were written. The five test business rules match
+local Appwrite. Human comparison with audio is still needed before treating the
+score as accurate. The private review is `.verification/gemini-offline-smoke.md`.
+
 ## September 27 Gemini migration
 
 The configured provider is now Gemini. The application schedules were disabled

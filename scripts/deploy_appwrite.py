@@ -68,6 +68,9 @@ def configuration(args):
                     "GEMINI_TIMEOUT_SECONDS", "GEMINI_MAX_OUTPUT_TOKENS"):
             if source.get(key):
                 values[key] = source[key]
+    if getattr(args, "flash_model", None):
+        values["GEMINI_ROMANIZER_MODEL"] = args.flash_model
+        values["GEMINI_GRADING_MODEL"] = args.flash_model
     return values, {**os.environ, "APPWRITE_ENDPOINT": endpoint, "APPWRITE_PROJECT_ID": project}
 
 
@@ -236,7 +239,7 @@ def deploy(args):
             ".env*", "node_modules", ".next", "*.tsbuildinfo", ".git", "*.log"))
         if list(site_source.rglob(".env*")):
             raise DeployError("Site source contains an environment file.")
-        functions = [dict(item, path="source", schedule="") for item in template["functions"]]
+        functions = [dict(item, path="source", schedule="", enabled=not bool(item["schedule"])) for item in template["functions"]]
         config = {"projectId": project, "endpoint": endpoint, "functions": functions,
                   "sites": [dict(template["sites"][0], path="site")]}
         (directory / "appwrite.config.json").write_text(json.dumps(config, indent=2))
@@ -283,6 +286,10 @@ def deploy(args):
                 current = command(["functions", "get", "--function-id", function["$id"]],
                                   directory, env, json_output=True)
                 cleanup_local_build(project, current["deploymentId"])
+        # New source checks PIPELINE_ENABLED before business work. Enable only
+        # after every build is ready, so legacy queued executions cannot run.
+        for function in functions:
+            command(function_metadata({**function, "enabled": True}), directory, env, private_values=private_values)
         print("Provisioning private database and recording bucket…", flush=True)
         execute("call-grader-bootstrap", {}, directory, env, private_values)
         for function_id in ("call-grader-worker", "call-grader-sync", "call-grader-catchup"):
@@ -333,6 +340,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["configure", "deploy", "verify"])
     parser.add_argument("--config", type=Path)
+    parser.add_argument("--flash-model", help="Override grading/Roman Urdu model for this deployment without changing private configuration")
     parser.add_argument("--paused", action="store_true", help="Keep scheduled workloads disabled and do not start initial jobs")
     parser.add_argument("--local", action="store_true", help="Target only the linked localhost development project")
     parser.add_argument("--function-id", action="append", help="Build only selected Functions; all other Functions must have active deployments")

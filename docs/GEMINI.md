@@ -62,8 +62,38 @@ The second transcription is checkpointed for the next bounded retry. Existing
 call results were preserved, and all four workload Functions remain disabled
 with their schedules cleared. API and bootstrap remain available.
 
-The new Gemini source has been tested on the host; it has not yet replaced the
-local Appwrite Function deployments. Local native builds require more free disk
-than currently available (about 4.5 GiB versus the documented 8 GiB build allowance).
-A subsequent `deploy --local --paused` or production `deploy --paused` installs
-the new source and secret variables without releasing the workload.
+### September 28 bounded alternative-model check
+
+The key's live catalogue lists both `gemini-3.5-flash` and `gemini-2.5-flash`.
+We used `gemini-2.5-flash` for Roman Urdu, grading and coaching on the saved
+59.04-second, 16-turn transcript. All three phases succeeded without another
+audio transcription. The resulting score was 8.8/10. This is a functional model
+check; the grader itself flagged incorrect speaker attribution in segments 10–13.
+The score should not be treated as verified until a human checks roles, transcript
+words and grading against the recording. The test used repository bootstrap business rules, which
+were confirmed identical to the five current local Appwrite rules. Local Appwrite
+was unavailable during the API calls, so the test used cached transcript and
+known outbound call metadata; it did not write call rows.
+
+The default `.env` model choices remain unchanged. The private test checkpoint and
+report record the alternate model. The deployment helper accepts `--flash-model`
+to target this model for a paused local build without changing `.env` or the
+private production configuration.
+
+
+## Local deployment verification
+
+The Gemini Functions and Next.js Site were rebuilt in the local Appwrite project
+with `deploy --local --paused --flash-model gemini-2.5-flash`. All six Function
+builds, native Chromium/FFmpeg/audio checks, private scopes, ten tables, storage,
+Site build and API readiness passed. The Worker has the 2.5 Flash model override
+through server-side variables. Sync, catch-up, Worker and maintenance Functions
+remain disabled with empty schedules; no full workload was released.
+
+Browser verification passed anonymous and non-admin denial, admin access to
+Dashboard/System and private audio, and immediate denial after replacing the admin
+label. The temporary account was deleted. A disposable first-install schema test
+exposed unbounded TEXT columns on indexed fields; bootstrap now creates bounded
+VARCHAR columns there. The rerun passed ten tables, indexes, bucket creation and
+repeat-safe seeds, then removed all disposable resources. The corrected bootstrap
+Function was activated with read-only scope.

@@ -87,13 +87,16 @@ def ensure_table(tables_svc, db_id: str, table_id: str, spec: dict) -> None:
         t = attr["type"]
         try:
             if t == "string":
-                # NOTE: create_string_column is deprecated in this SDK generation;
-                # text columns are the supported equivalent (variable length, so no
-                # size argument). Existing varchar columns from earlier runs are
-                # left untouched — the key check above keeps this idempotent.
-                tables_svc.create_text_column(database_id=db_id, table_id=table_id,
-                                              key=attr["key"],
-                                              required=bool(attr.get("required", False)))
+                # Indexed strings need bounded varchar columns. Unbounded TEXT
+                # cannot support the schema's key/unique indexes on MySQL.
+                if attr["size"] <= 16381:
+                    tables_svc.create_varchar_column(database_id=db_id, table_id=table_id,
+                                                     key=attr["key"], size=attr["size"],
+                                                     required=bool(attr.get("required", False)))
+                else:
+                    tables_svc.create_text_column(database_id=db_id, table_id=table_id,
+                                                  key=attr["key"],
+                                                  required=bool(attr.get("required", False)))
             elif t == "integer":
                 tables_svc.create_integer_column(database_id=db_id, table_id=table_id,
                                                  key=attr["key"], required=bool(attr.get("required", False)))

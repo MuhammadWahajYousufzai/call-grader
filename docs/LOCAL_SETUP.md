@@ -6,14 +6,14 @@ The repository does not deploy separate application containers.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-make deploy-local
-make verify-local
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused --flash-model gemini-2.5-flash
+uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
 ```
 
 Skip `configure` if the private `.env.appwrite-local.json` already exists. The
 helper imports existing `.env` credentials, checks the linked local project,
 packages source without secrets, builds Functions/Site, provisions schema, verifies
-runtime tools and enables schedules. Allow at least 8 GB of free build disk.
+runtime tools and leaves schedules disabled for bounded testing. Allow at least 8 GB of free build disk.
 
 Open the generated Site address under `sites.localhost`. Give the project account
 the exact `admin` label. Local runtime calls reach Appwrite using

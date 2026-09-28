@@ -21,7 +21,7 @@ Create the production project in Console, then run:
 ```sh
 appwrite login --endpoint https://yousufricemill.com/v1
 python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-python3 scripts/deploy_appwrite.py deploy
+python3 scripts/deploy_appwrite.py deploy --paused --flash-model gemini-2.5-flash
 ```
 
 Hidden prompts collect Jazz/Gemini credentials. The helper generates the internal
@@ -32,13 +32,13 @@ local manifest: the helper explicitly targets production using a temporary manif
 Deployment creates six private Functions and one Next.js SSR Site, installs their
 variables/scopes, provisions ten private tables/indexes and the recording bucket,
 seeds settings/rules/agents, checks native tools and API access, builds the Site,
-then enables schedules. Existing call data is preserved. If provisioning or a
+then leaves schedules disabled for review. Run `deploy --flash-model gemini-2.5-flash` after the paid key and quota are ready to enable the workload. Existing call data is preserved. If provisioning or a
 build/check fails before schedules are enabled, fix the reported error and rerun
 `deploy`; schema creation is idempotent. API/bootstrap have no schedule. Bootstrap
 write scopes are removed after setup.
 
 The helper automatically runs resource/runtime verification after deploying.
-A first daytime deployment waits until 18:01 Karachi; later deployments catch up
+After schedules are enabled, a first daytime deployment waits until 18:01 Karachi; later deployments catch up
 missed closed batches. No manual Jazz login, recording download or grading is needed.
 
 ## 3. Account, domain and GitHub
@@ -58,8 +58,8 @@ the Site uses private Appwrite SDK Function executions.
 ## 4. Repeatable verification
 
 ```sh
-python3 scripts/deploy_appwrite.py verify
-uv run --project services/backend python scripts/deploy_appwrite.py verify --site-url https://calls.yousufricemill.com
+python3 scripts/deploy_appwrite.py verify --paused
+uv run --project services/backend python scripts/deploy_appwrite.py verify --paused --site-url https://calls.yousufricemill.com
 ```
 
 The first command verifies active builds, private permissions, exact schedules,
@@ -96,4 +96,5 @@ For local deployment the helper refreshes Gemini credentials/model names directl
 from `.env`, even when `.env.appwrite-local.json` already exists.
 
 After a successful real-call test and paid-project quota verification, run normal
-`deploy` to enable schedules. See [Gemini testing](GEMINI.md).
+`deploy --flash-model gemini-2.5-flash` to enable schedules. This keeps the
+verified Flash model even when the private configuration still names 3.8 Flash. See [Gemini testing](GEMINI.md).

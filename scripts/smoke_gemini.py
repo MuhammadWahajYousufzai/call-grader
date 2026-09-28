@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'services/backend'))
 
 
-def run(call_id, output, max_audio_seconds):
+def run(call_id, output, max_audio_seconds, flash_model=None):
     from app.ai.gemini import limited_requests
     from app.ai.workflows import daily_coaching_summary, grade_call, romanize_segments
     from app.appwrite import repos
@@ -22,6 +22,9 @@ def run(call_id, output, max_audio_seconds):
     from app.reporting.compute import compute_report
     from app.transcription.service import assign_roles, transcribe_file
     settings = get_settings()
+    if flash_model:
+        settings.GEMINI_ROMANIZER_MODEL = flash_model
+        settings.GEMINI_GRADING_MODEL = flash_model
     call = repos.get_doc('calls', call_id)
     if not call or not call.get('recording_storage_file_id') or call.get('recording_deleted_at'):
         raise RuntimeError('Choose a call with a retained real recording.')
@@ -32,10 +35,17 @@ def run(call_id, output, max_audio_seconds):
         'models': models, 'max_audio_seconds': max_audio_seconds,
         'generation_requests': 0, 'existing_calls_and_grades_modified': False,
     }
-    if (result['call_id'] != call_id or result['models'] != models
+    if (result['call_id'] != call_id or result['models']['GEMINI_TRANSCRIBE_MODEL'] != models['GEMINI_TRANSCRIBE_MODEL']
             or result['recording_sha256'] != call.get('recording_sha256')
             or result['max_audio_seconds'] != max_audio_seconds):
         raise RuntimeError('Checkpoint does not match recording/models; choose a fresh output path.')
+    if result['models'] != models:
+        result.setdefault('model_history', []).append(result['models'])
+        result['models'] = models
+        for key in ('romanization_done', 'grade', 'coaching', 'status', 'last_error'):
+            result.pop(key, None)
+        for segment in result.get('segments', []):
+            segment.pop('roman_urdu_text', None)
     output.parent.mkdir(parents=True, exist_ok=True)
     def checkpoint():
         fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -119,12 +129,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--call-id', required=True)
     parser.add_argument('--output', type=Path, default=ROOT / '.verification/gemini-smoke.json')
+    parser.add_argument('--flash-model', help='Override grading/Roman Urdu model only for this bounded test')
     parser.add_argument('--max-audio-seconds', type=int, default=180)
     args = parser.parse_args()
     if not 1 <= args.max_audio_seconds <= 600:
         raise SystemExit('Use 1–600 seconds for the bounded smoke test.')
     try:
-        run(args.call_id, args.output, args.max_audio_seconds)
+        run(args.call_id, args.output, args.max_audio_seconds, args.flash_model)
     except Exception as exc:
         # Never print SDK/HTTP tracebacks containing credentials or cookies.
         from app.ai.gemini import GeminiError

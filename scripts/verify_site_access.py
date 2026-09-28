@@ -64,7 +64,7 @@ def verify_access(origin, directory, env):
                 print('PASS: admin-only private recording playback.', flush=True)
             else:
                 print('SKIP: playback requires a real ingested recording; none is available in this project.', flush=True)
-            command(['users', 'update-labels', '--user-id', ident], directory, env)
+            command(['users', 'update-labels', '--user-id', ident, '--labels', 'revoked'], directory, env)
             status = page.evaluate('async path => (await fetch(path)).status', audio_path)
             if status != 403:
                 raise DeployError('Revoking the admin label did not immediately deny recording access.')
