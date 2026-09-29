@@ -184,6 +184,21 @@ def test_local_key_swap_is_refreshed_from_private_env(monkeypatch, tmp_path):
     assert json.loads(path.read_text())['GEMINI_API_KEY'] == 'old-test-key'
 
 
+def test_production_rejects_temporary_flash_override(tmp_path):
+    config = {'APPWRITE_ENDPOINT': 'https://example.com/v1', 'APPWRITE_PROJECT_ID': 'prod',
+              'GEMINI_API_KEY': 'test-key', 'JAZZ_UAN': 'test', 'JAZZ_PASSWORD': 'test',
+              'INTERNAL_API_TOKEN': 'test', 'GEMINI_TRANSCRIBE_MODEL': 'gemini-3.5-transcribe',
+              'GEMINI_ROMANIZER_MODEL': 'gemini-3.8-flash', 'GEMINI_GRADING_MODEL': 'gemini-3.8-flash'}
+    path = tmp_path / 'private.json'
+    path.write_text(json.dumps(config))
+    path.chmod(0o600)
+    with pytest.raises(deploy.DeployError, match='only for bounded local testing'):
+        deploy.configuration(SimpleNamespace(local=False, config=path, flash_model='gemini-2.5-flash'))
+    values, _ = deploy.configuration(SimpleNamespace(local=False, config=path, flash_model=None))
+    assert values['GEMINI_ROMANIZER_MODEL'] == 'gemini-3.8-flash'
+    assert values['GEMINI_GRADING_MODEL'] == 'gemini-3.8-flash'
+
+
 def test_fresh_schema_uses_bounded_varchar_for_indexed_strings(monkeypatch):
     from app.appwrite.schema import TABLES
 

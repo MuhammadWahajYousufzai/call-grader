@@ -76,18 +76,23 @@ was unavailable during the API calls, so the test used cached transcript and
 known outbound call metadata; it did not write call rows.
 
 The default `.env` model choices remain unchanged. The private test checkpoint and
-report record the alternate model. The deployment helper accepts `--flash-model`
-to target this model for a paused local build without changing `.env` or the
-private production configuration.
+report record the alternate model. `--flash-model` is an explicit local-only test override;
+normal local and production deployments read the selected 3.8 model from their
+private configuration.
 
 
 ## Local deployment verification
 
 The Gemini Functions and Next.js Site were rebuilt in the local Appwrite project
-with `deploy --local --paused --flash-model gemini-2.5-flash`. All six Function
+with `deploy --local --paused --flash-model gemini-2.5-flash` for the bounded
+test. All six Function
 builds, native Chromium/FFmpeg/audio checks, private scopes, ten tables, storage,
-Site build and API readiness passed. The Worker has the 2.5 Flash model override
-through server-side variables. Sync, catch-up, Worker and maintenance Functions
+Site build and API readiness passed. The Worker model variables were then set back
+to `gemini-3.8-flash`. A new local Worker build was marked ready by Appwrite, but
+its stored archive failed gzip validation, so the active deployment was rolled
+back to the preceding valid build. A private runtime-check execution on that
+build passed; inspection of its running container confirmed both model variables
+are 3.8 and `PIPELINE_ENABLED=false`. Sync, catch-up, Worker and maintenance Functions
 remain disabled with empty schedules; no full workload was released.
 
 Browser verification passed anonymous and non-admin denial, admin access to

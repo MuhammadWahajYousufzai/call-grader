@@ -68,6 +68,8 @@ def configuration(args):
                     "GEMINI_TIMEOUT_SECONDS", "GEMINI_MAX_OUTPUT_TOKENS"):
             if source.get(key):
                 values[key] = source[key]
+    if getattr(args, "flash_model", None) and not args.local:
+        raise DeployError("--flash-model is only for bounded local testing; production uses its private model configuration.")
     if getattr(args, "flash_model", None):
         values["GEMINI_ROMANIZER_MODEL"] = args.flash_model
         values["GEMINI_GRADING_MODEL"] = args.flash_model
@@ -227,6 +229,9 @@ def execute(function_id, body, directory, env, private_values, *, readiness=Fals
 def deploy(args):
     values, env = configuration(args)
     endpoint, project = values["APPWRITE_ENDPOINT"], values["APPWRITE_PROJECT_ID"]
+    print("Selected models: transcription={GEMINI_TRANSCRIBE_MODEL}, "
+          "Roman Urdu={GEMINI_ROMANIZER_MODEL}, grading/coaching={GEMINI_GRADING_MODEL}.".format(**values),
+          flush=True)
     private_values = tuple(values.values())
     template = json.loads((ROOT / "appwrite.config.json").read_text())
     with tempfile.TemporaryDirectory(prefix="call-grader-deploy-") as temporary:
@@ -340,7 +345,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["configure", "deploy", "verify"])
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--flash-model", help="Override grading/Roman Urdu model for this deployment without changing private configuration")
+    parser.add_argument("--flash-model", help="Override grading/Roman Urdu model only for a bounded local test")
     parser.add_argument("--paused", action="store_true", help="Keep scheduled workloads disabled and do not start initial jobs")
     parser.add_argument("--local", action="store_true", help="Target only the linked localhost development project")
     parser.add_argument("--function-id", action="append", help="Build only selected Functions; all other Functions must have active deployments")
@@ -350,6 +355,8 @@ def main():
     parser.add_argument("--fresh-schema", action="store_true", help="Also test disposable fresh schema in the local project")
     parser.add_argument("--site-url", help="Also verify browser access using a temporary account (requires Playwright)")
     args = parser.parse_args()
+    if args.action == "configure" and args.flash_model:
+        raise SystemExit("--flash-model applies only to a local deploy or verify test.")
     args.config = args.config or (ROOT / ".env.appwrite-local.json" if args.local else PRIVATE_FILE)
     if args.skip_function_builds and not args.local:
         raise SystemExit("--skip-function-builds is only available for local deployment recovery.")

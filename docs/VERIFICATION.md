@@ -1,3 +1,24 @@
+## September 29 model selection and deployment preparation
+
+The September 28 `gemini-2.5-flash` run confirmed that the saved transcript can
+pass Roman Urdu normalization, structured grading and coaching. It did not
+validate the grade's accuracy: speaker roles in segments 10–13 need human review.
+`gemini-3.8-flash` is the selected production Roman Urdu and grading/coaching
+model; its earlier bounded Roman Urdu requests returned HTTP 503, so a successful
+3.8 grading result has not yet been observed. No full AI workload was released.
+
+The local Worker model variables were changed from the temporary 2.5 override to
+3.8. A newly built local archive failed gzip CRC validation despite Appwrite
+marking it ready; it was removed and the preceding valid build was restored.
+A private `runtime-check` execution on that build passed imports, Chromium,
+FFmpeg and ffprobe, and its running container had both 3.8 model variables with
+`PIPELINE_ENABLED=false`. All four workload Functions have empty schedules and
+are disabled. The production helper now reports its selected model names,
+and rejects `--flash-model` against a production target. Production setup uses a
+private target configuration and explicit production CLI inspection commands;
+the repository manifest remains linked to the local project. Production has no
+project ID or deployment yet.
+
 ## September 28 paused local deployment and fresh-schema repair
 
 Six Function builds and the Site build passed. Private resource/schema/scope

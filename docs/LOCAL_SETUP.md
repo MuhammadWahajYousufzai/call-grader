@@ -6,7 +6,7 @@ The repository does not deploy separate application containers.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused --flash-model gemini-2.5-flash
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused
 uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
 ```
 

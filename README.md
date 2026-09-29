@@ -20,6 +20,24 @@ Office hours are 09:30–18:00 Karachi. Discovery starts daily at **18:01**;
 calls after 18:00 join the following day's batch. Appwrite watchdogs retry
 missed discovery, interrupted jobs and expired leases automatically.
 
+### Production quick start
+
+Create a project on the existing Appwrite 2.3 server, copy its project ID, then
+clone this repository and run from its root:
+
+```sh
+appwrite login --endpoint https://yousufricemill.com/v1
+uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
+uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
+```
+
+The helper prints Function and Site progress. The Console shows their
+Deployments/Executions; [production setup](docs/PRODUCTION_SETUP.md) has the
+exact CLI inspection commands, GitHub connection, admin label, domain and
+workload release steps. Production uses `gemini-3.8-flash` for Roman Urdu and
+grading/coaching. The previous `gemini-2.5-flash` result was a bounded flow test.
+
 ## Local Functions + Sites
 
 Keep the existing local Appwrite running, log into its CLI and use the linked
@@ -27,7 +45,7 @@ project. Configure the private `.env` using `.env.example` if needed.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused --flash-model gemini-2.5-flash
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused
 uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
 ```
 

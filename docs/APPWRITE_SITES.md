@@ -64,13 +64,14 @@ created during verification. It is excluded from every source package/image.
 ## GitHub deployment through the production Console
 
 1. Use the GitHub repository `MuhammadWahajYousufzai/call-grader`, branch `main`.
-2. In the production Appwrite project, open **Sites**, create a Site, and connect
-   the GitHub repository. Choose `main` as the production branch.
+2. Deploy the existing project with the CLI helper, then open its
+   **Sites → call-grader-web** resource in Console. Connect that Site to the
+   GitHub repository and choose `main` as its production branch.
 3. Set the repository root directory to `apps/web`. Apply the Next.js SSR build
    settings and all three Site scopes in the table above.
-4. Run the [Functions deployment helper](APPWRITE_FUNCTIONS.md) for the selected
-   project. It deploys the backend Functions and configures
-   `APPWRITE_BACKEND_FUNCTION_ID`, secret `INTERNAL_API_TOKEN`, and the server
+4. The [Functions deployment helper](APPWRITE_FUNCTIONS.md) deploys the backend
+   Functions and configures `APPWRITE_BACKEND_FUNCTION_ID`, secret
+   `INTERNAL_API_TOKEN`, and the server
    endpoint/project variables. Set `APP_ORIGIN` to the final HTTPS origin if
    your proxy changes the request host.
 5. Deploy and wait for the build to reach `ready`. Verify the deployed URL:

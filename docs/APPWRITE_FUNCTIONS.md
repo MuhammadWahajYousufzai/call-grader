@@ -58,11 +58,14 @@ The local helper reuses the existing private repository `.env` and the linked
 localhost project. Allow at least 8 GB of free disk for native builds. It
 packages source without environment files, builds Functions sequentially,
 removes their completed local Appwrite build containers, deploys the Site, and
-enables Function schedules after verification. Pass `--paused --flash-model gemini-2.5-flash` to deploy the verified Flash model while leaving the workload disabled for review.
+enables Function schedules after verification. Use `--paused` during setup to
+leave all workload Functions disabled. The Worker reads the selected models from
+the private `.env`: `gemini-3.5-transcribe` and `gemini-3.8-flash`.
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py configure --local
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --local
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused
+uv run --project services/backend python scripts/deploy_appwrite.py verify --local --paused
 ```
 
 Appwrite generates the local Site address under `sites.localhost`; use that
@@ -79,7 +82,7 @@ Prerequisites:
 - The server's `_APP_FUNCTIONS_TIMEOUT` must allow 900 seconds. Check its installed
   version's configuration if it uses a different timeout setting.
 - Builds need internet access to Python and Alpine package repositories.
-- Appwrite CLI logged into the production instance, Python 3, and this repository.
+- Appwrite CLI logged into the production instance, `uv`, and this repository.
 - Production project created in Console. Add your project account and give it
   the exact `admin` label under **Auth → Users**.
 
@@ -98,8 +101,9 @@ Run in the repository:
 
 ```sh
 appwrite login --endpoint https://yousufricemill.com/v1
-python3 scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-python3 scripts/deploy_appwrite.py deploy
+uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
+uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
 ```
 
 `configure` asks for the Gemini and Jazz credentials using hidden input, generates
@@ -111,7 +115,11 @@ scoped execution keys; no permanent Appwrite server key is required.
 schedules paused while deploying, sets role-specific variables without replacing
 unrelated variables, provisions the database and private bucket through the
 bootstrap Function, checks pipeline imports and Chromium/FFmpeg/FFprobe inside every pipeline Function,
-verifies API readiness, builds the Site, then enables schedules and starts the initial catch-up. A runtime startup timeout is retried twice; application errors stop deployment with schedules paused. Old inactive deployments have a seven-day retention setting. Bootstrap has no schedule and loses its
+verifies API readiness, and builds the Site. The example leaves all four workload
+Functions disabled. Once paid Gemini quota is ready, rerun `deploy` without
+`--paused` to enable schedules and start catch-up. A runtime startup timeout is
+retried twice; application errors stop deployment with schedules paused. Old
+inactive deployments have a seven-day retention setting. Bootstrap has no schedule and loses its
 write scopes after provisioning. Future deployments restore those scopes only
 for schema preparation.
 
