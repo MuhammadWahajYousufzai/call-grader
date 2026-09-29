@@ -101,24 +101,21 @@ Run in the repository:
 
 ```sh
 appwrite login --endpoint https://yousufricemill.com/v1
-uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
-uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --project-id YOUR_PRODUCTION_PROJECT_ID
 ```
 
-`configure` asks for the Gemini and Jazz credentials using hidden input, generates
-an internal token, and writes `.env.appwrite-production.json` with owner-only
-permissions. This file is ignored by Git. Functions use Appwrite's automatically
+On its first run, `deploy` asks for the paid Gemini key and existing Jazz
+credentials using hidden input, generates an internal token, and writes
+`.env.appwrite-production.json` with owner-only permissions. This file is ignored
+by Git. Functions use Appwrite's automatically
 scoped execution keys; no permanent Appwrite server key is required.
 
 `deploy` creates/updates only this app's six Functions and one Site. It keeps
 schedules paused while deploying, sets role-specific variables without replacing
 unrelated variables, provisions the database and private bucket through the
 bootstrap Function, checks pipeline imports and Chromium/FFmpeg/FFprobe inside every pipeline Function,
-verifies API readiness, and builds the Site. The example leaves all four workload
-Functions disabled. After confirming the paid Gemini key supplied during
-`configure` has quota, rerun `deploy` without
-`--paused` to enable schedules and start catch-up. A runtime startup timeout is
+verifies API readiness, builds the Site, then enables the schedules and starts
+catch-up. A runtime startup timeout is
 retried twice; application errors stop deployment with schedules paused. Old
 inactive deployments have a seven-day retention setting. Bootstrap has no schedule and loses its
 write scopes after provisioning. Future deployments restore those scopes only

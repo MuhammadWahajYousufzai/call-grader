@@ -1,7 +1,7 @@
-.PHONY: help deploy-local verify-local deploy-local-active verify-local-active configure-production deploy-production-paused verify-production-paused deploy-production verify-production test lint
+.PHONY: help deploy-local verify-local deploy-local-active verify-local-active deploy-production verify-production test lint
 
 help:
-	@echo "Targets: deploy-local verify-local deploy-local-active verify-local-active configure-production deploy-production-paused verify-production-paused deploy-production verify-production test lint"
+	@echo "Targets: deploy-local verify-local deploy-local-active verify-local-active deploy-production verify-production test lint"
 
 deploy-local:
 	uv run --project services/backend python scripts/deploy_appwrite.py deploy --local --paused
@@ -14,15 +14,6 @@ deploy-local-active:
 
 verify-local-active:
 	uv run --project services/backend python scripts/deploy_appwrite.py verify --local
-
-configure-production:
-	uv run --project services/backend python scripts/deploy_appwrite.py configure
-
-deploy-production-paused:
-	uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
-
-verify-production-paused:
-	uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
 
 deploy-production:
 	uv run --project services/backend python scripts/deploy_appwrite.py deploy

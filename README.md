@@ -26,22 +26,22 @@ This is a developer handoff. The receiving developer creates a **new project** o
 the existing production Appwrite 2.3 server and deploys it from this repository.
 They use the same Jazz UAN/password and the selected model names. The only
 credential change is a **paid Gemini API key**, entered privately during
-`configure`; none of these credentials are in Git. After creating the project,
+the first deployment; none of these credentials are in Git. After creating the project,
 the developer copies its ID, clones the repository and runs from its root:
 
 ```sh
 git clone https://github.com/MuhammadWahajYousufzai/call-grader.git
 cd call-grader
 appwrite login --endpoint https://yousufricemill.com/v1
-uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
-uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --project-id YOUR_PRODUCTION_PROJECT_ID
 ```
 
-The helper prints Function and Site progress. The Console shows their
+The first deployment privately prompts for the paid Gemini key and existing
+Jazz credentials. It checks the build and starts Appwrite's schedules. The helper
+prints Function and Site progress. The Console shows their
 Deployments/Executions; [production setup](docs/PRODUCTION_SETUP.md) has the
 exact CLI inspection commands, GitHub connection, admin label, domain and
-workload release steps. Production uses `gemini-3.8-flash` for Roman Urdu and
+running-system checks. Production uses `gemini-3.8-flash` for Roman Urdu and
 grading/coaching. The previous `gemini-2.5-flash` result was a bounded flow test.
 
 ## Local Functions + Sites

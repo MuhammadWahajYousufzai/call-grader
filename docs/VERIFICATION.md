@@ -13,8 +13,8 @@ marking it ready; it was removed and the preceding valid build was restored.
 A private `runtime-check` execution on that build passed imports, Chromium,
 FFmpeg and ffprobe, and its running container had both 3.8 model variables with
 `PIPELINE_ENABLED=false`. All four workload Functions have empty schedules and
-are disabled. The production helper now reports its selected model names,
-and rejects `--flash-model` against a production target. Production setup uses a
+are disabled. The production helper now reports its selected model names.
+Production setup uses a
 private target configuration and explicit production CLI inspection commands;
 the repository manifest remains linked to the local project. Production has no
 project ID or deployment yet.

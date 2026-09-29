@@ -10,8 +10,8 @@ assistant. No separate Docker application containers are deployed.
 The production inputs are the **same Jazz UAN/password** and the **same selected
 Gemini models** (`gemini-3.5-transcribe` and `gemini-3.8-flash`). The only changed
 credential is a **paid Gemini API key**. Obtain the Jazz credentials and paid key
-through a private handoff; they are not committed to Git. Enter the paid key at
-the `configure` prompt, so there is no later free-key swap step.
+through a private handoff; they are not committed to Git. Enter the paid key
+when the first deployment prompts for it. No later free-key swap is needed.
 
 ## 1. Prepare the project and server
 
@@ -40,27 +40,26 @@ project ID copied from the production Console:
 git clone https://github.com/MuhammadWahajYousufzai/call-grader.git
 cd call-grader
 appwrite login --endpoint https://yousufricemill.com/v1
-uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
-uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused
-uv run --project services/backend python scripts/deploy_appwrite.py verify --paused
+uv run --project services/backend python scripts/deploy_appwrite.py deploy --project-id YOUR_PRODUCTION_PROJECT_ID
 ```
 
 If the repository is already cloned, use `git pull --ff-only` in its root instead
 of cloning again. A fresh clone needs no local `.env`, local Appwrite project,
-or files from the owner's Mac. `configure` uses hidden prompts for the paid
-Gemini key and existing Jazz credentials, generates the internal token, and creates
-`.env.appwrite-production.json` with owner-only permissions. This ignored file
+or files from the owner's Mac. On first use, `deploy` asks through hidden prompts
+for the paid Gemini key and existing Jazz credentials, generates the internal
+token, and creates `.env.appwrite-production.json` with owner-only permissions. This ignored file
 is the deployment target and secret source. Store a secure backup of it; later
 runs reuse it. No permanent Appwrite application API key is needed. The helper
 uses a temporary manifest targeting the production project, so it does not
 relink or push the local `appwrite.config.json`.
 
 The helper prints each Function build, schema/bootstrap check, native runtime
-check, API readiness check, Site build, and final verification. `--paused`
-keeps discovery, catch-up, Worker and maintenance disabled with empty schedules;
-no Jazz or Gemini workload starts. It preserves existing data and is safe to
-rerun after correcting a reported failure. API and bootstrap have no schedules.
-The bootstrap Function's broad scopes are removed after provisioning.
+check, API readiness check, Site build, and final verification. After those checks
+pass, it enables the schedules and starts the initial sync/Worker catch-up. It
+preserves existing data and can be rerun after correcting a reported failure.
+If a build or runtime check fails, the schedules stay disabled. API and bootstrap
+have no schedules. The bootstrap Function's broad scopes are removed after
+provisioning.
 
 ## 3. Watch the deployment in CLI and Console
 
@@ -83,7 +82,7 @@ for build status and **Executions** for runtime results. Check the other five
 Functions too. Open **Sites → call-grader-web → Deployments** for the SSR build,
 and **Databases/Storage** for the private tables and bucket. A deployment must
 reach `ready`; the helper's `PASS` checks confirm the active builds, scopes,
-variables, schema, bucket, API and paused schedules. The Console may require a
+variables, schema, bucket, API and schedules. The Console may require a
 refresh while a CLI build is running.
 
 ## 4. Connect GitHub, domain and admin access
@@ -110,24 +109,14 @@ immediate label revocation. If a recording exists, it checks private playback.
 
 ```sh
 uv run --project services/backend playwright install chromium
-uv run --project services/backend python scripts/deploy_appwrite.py verify --paused --site-url https://calls.yousufricemill.com
+uv run --project services/backend python scripts/deploy_appwrite.py verify --site-url https://calls.yousufricemill.com
 ```
 
-## 5. Start the daily workload after verification
+## 5. Check the running system
 
-The selected model names are in `.env.appwrite-production.json`. Confirm they
-remain `gemini-3.5-transcribe` and `gemini-3.8-flash`, and that the paid Gemini
-key entered during `configure` has usable quota. Then run:
-
-```sh
-uv run --project services/backend python scripts/deploy_appwrite.py deploy
-uv run --project services/backend python scripts/deploy_appwrite.py verify
-appwrite functions list-executions --function-id call-grader-worker --limit 5
-```
-
-This enables Appwrite's native schedules and starts the initial sync/Worker
-catch-up. Discovery runs daily at **18:01 Karachi**; calls after 18:00 join the
-following day's batch. Check **System** and **Dashboard** for queue progress and
+The first deployment already enabled Appwrite's schedules and started the
+initial sync/Worker catch-up. Discovery runs daily at **18:01 Karachi**; calls
+after 18:00 join the following day's batch. Check **System** and **Dashboard** for queue progress and
 review real transcripts, speaker roles and grades. A successful build and
 runtime check do not prove AI grading quality; the bounded test found speaker
 attribution needing review in segments 10–13. Provider 429/5xx responses remain

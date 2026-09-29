@@ -68,8 +68,6 @@ def configuration(args):
                     "GEMINI_TIMEOUT_SECONDS", "GEMINI_MAX_OUTPUT_TOKENS"):
             if source.get(key):
                 values[key] = source[key]
-    if getattr(args, "flash_model", None) and not args.local:
-        raise DeployError("--flash-model is only for bounded local testing; production uses its private model configuration.")
     if getattr(args, "flash_model", None):
         values["GEMINI_ROMANIZER_MODEL"] = args.flash_model
         values["GEMINI_GRADING_MODEL"] = args.flash_model
@@ -125,6 +123,15 @@ def configure(args):
     with os.fdopen(fd, "w") as file:
         json.dump(config, file)
     print(f"Saved private configuration to {args.config.name}. No permanent Appwrite server key is needed.")
+
+
+def ensure_configured(args):
+    """Collect first-run production credentials during a direct deploy."""
+    if args.config.exists():
+        return
+    if args.local:
+        raise DeployError("Local configuration is missing; run configure --local first.")
+    configure(args)
 
 
 def variables(resource, resource_id, values, directory, env, private_values):
@@ -345,7 +352,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["configure", "deploy", "verify"])
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--flash-model", help="Override grading/Roman Urdu model only for a bounded local test")
+    parser.add_argument("--flash-model", help="Override grading/Roman Urdu model for this deployment")
     parser.add_argument("--paused", action="store_true", help="Keep scheduled workloads disabled and do not start initial jobs")
     parser.add_argument("--local", action="store_true", help="Target only the linked localhost development project")
     parser.add_argument("--function-id", action="append", help="Build only selected Functions; all other Functions must have active deployments")
@@ -356,7 +363,7 @@ def main():
     parser.add_argument("--site-url", help="Also verify browser access using a temporary account (requires Playwright)")
     args = parser.parse_args()
     if args.action == "configure" and args.flash_model:
-        raise SystemExit("--flash-model applies only to a local deploy or verify test.")
+        raise SystemExit("--flash-model applies to deploy or verify, not configure.")
     args.config = args.config or (ROOT / ".env.appwrite-local.json" if args.local else PRIVATE_FILE)
     if args.skip_function_builds and not args.local:
         raise SystemExit("--skip-function-builds is only available for local deployment recovery.")
@@ -367,6 +374,7 @@ def main():
             from verify_appwrite import verify
             verify(args)
         else:
+            ensure_configured(args)
             deploy(args)
             from verify_appwrite import verify
             verify(args)

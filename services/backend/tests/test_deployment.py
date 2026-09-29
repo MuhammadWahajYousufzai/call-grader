@@ -184,7 +184,7 @@ def test_local_key_swap_is_refreshed_from_private_env(monkeypatch, tmp_path):
     assert json.loads(path.read_text())['GEMINI_API_KEY'] == 'old-test-key'
 
 
-def test_production_rejects_temporary_flash_override(tmp_path):
+def test_production_can_override_flash_model(tmp_path):
     config = {'APPWRITE_ENDPOINT': 'https://example.com/v1', 'APPWRITE_PROJECT_ID': 'prod',
               'GEMINI_API_KEY': 'test-key', 'JAZZ_UAN': 'test', 'JAZZ_PASSWORD': 'test',
               'INTERNAL_API_TOKEN': 'test', 'GEMINI_TRANSCRIBE_MODEL': 'gemini-3.5-transcribe',
@@ -192,11 +192,27 @@ def test_production_rejects_temporary_flash_override(tmp_path):
     path = tmp_path / 'private.json'
     path.write_text(json.dumps(config))
     path.chmod(0o600)
-    with pytest.raises(deploy.DeployError, match='only for bounded local testing'):
-        deploy.configuration(SimpleNamespace(local=False, config=path, flash_model='gemini-2.5-flash'))
+    override, _ = deploy.configuration(SimpleNamespace(local=False, config=path, flash_model='gemini-2.5-flash'))
+    assert override['GEMINI_ROMANIZER_MODEL'] == 'gemini-2.5-flash'
+    assert override['GEMINI_GRADING_MODEL'] == 'gemini-2.5-flash'
     values, _ = deploy.configuration(SimpleNamespace(local=False, config=path, flash_model=None))
     assert values['GEMINI_ROMANIZER_MODEL'] == 'gemini-3.8-flash'
     assert values['GEMINI_GRADING_MODEL'] == 'gemini-3.8-flash'
+
+
+def test_first_production_deploy_collects_config_from_fresh_clone(monkeypatch, tmp_path):
+    path = tmp_path / '.env.appwrite-production.json'
+    monkeypatch.setattr(deploy.getpass, 'getpass', lambda _: 'private-test-value')
+    args = SimpleNamespace(local=False, endpoint='https://example.com/v1',
+                           project_id='new-project', config=path)
+    deploy.ensure_configured(args)
+    config = json.loads(path.read_text())
+    assert config['APPWRITE_PROJECT_ID'] == 'new-project'
+    assert config['GEMINI_GRADING_MODEL'] == 'gemini-3.8-flash'
+    assert config['GEMINI_ROMANIZER_MODEL'] == 'gemini-3.8-flash'
+    assert path.stat().st_mode & 0o077 == 0
+    deploy.ensure_configured(args)
+    assert json.loads(path.read_text()) == config
 
 
 def test_fresh_schema_uses_bounded_varchar_for_indexed_strings(monkeypatch):

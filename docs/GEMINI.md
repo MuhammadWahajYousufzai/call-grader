@@ -76,7 +76,7 @@ was unavailable during the API calls, so the test used cached transcript and
 known outbound call metadata; it did not write call rows.
 
 The default `.env` model choices remain unchanged. The private test checkpoint and
-report record the alternate model. `--flash-model` is an explicit local-only test override;
+report record the alternate model. `--flash-model` is an explicit override;
 normal local and production deployments read the selected 3.8 model from their
 private configuration.
 
