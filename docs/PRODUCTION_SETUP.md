@@ -1,9 +1,17 @@
 # Production setup — existing Appwrite 2.3
 
-The production Appwrite installation is already running at
-`https://yousufricemill.com/v1`. This procedure adds one project containing six
-Functions, one Next.js Site, ten private tables and the recording bucket. It does
-not install Appwrite or deploy separate Docker application containers.
+This is the handoff for the receiving developer. The production Appwrite 2.3
+installation is already running at `https://yousufricemill.com/v1`. The developer
+creates a **new project** there and deploys six Functions, one Next.js Site, ten
+private tables and the recording bucket from this GitHub repository. The owner
+does not need to create the project or provide its ID back to the original coding
+assistant. No separate Docker application containers are deployed.
+
+The production inputs are the **same Jazz UAN/password** and the **same selected
+Gemini models** (`gemini-3.5-transcribe` and `gemini-3.8-flash`). The only changed
+credential is a **paid Gemini API key**. Obtain the Jazz credentials and paid key
+through a private handoff; they are not committed to Git. Enter the paid key at
+the `configure` prompt, so there is no later free-key swap step.
 
 ## 1. Prepare the project and server
 
@@ -17,9 +25,9 @@ For automatic Git deployments later, configure the existing self-hosted
 Appwrite GitHub integration and grant its installation access to this private
 repository. The initial CLI deployment works without a GitHub integration.
 
-Use a funded Gemini API project with quota for the selected models, plus working
-Jazz credentials. The Worker will use `gemini-3.5-transcribe` for audio and
-`gemini-3.8-flash` for Roman Urdu, grading and coaching. The earlier
+Use a funded Gemini API project with quota for the selected models. The Worker
+will use `gemini-3.5-transcribe` for audio and `gemini-3.8-flash` for Roman Urdu,
+grading and coaching. The earlier
 `gemini-2.5-flash` run only checked the flow; it is not the production choice.
 
 ## 2. Deploy from the GitHub repository with Appwrite CLI
@@ -38,8 +46,9 @@ uv run --project services/backend python scripts/deploy_appwrite.py verify --pau
 ```
 
 If the repository is already cloned, use `git pull --ff-only` in its root instead
-of cloning again. `configure` uses hidden prompts for the Gemini key and Jazz
-credentials, generates the internal token, and creates
+of cloning again. A fresh clone needs no local `.env`, local Appwrite project,
+or files from the owner's Mac. `configure` uses hidden prompts for the paid
+Gemini key and existing Jazz credentials, generates the internal token, and creates
 `.env.appwrite-production.json` with owner-only permissions. This ignored file
 is the deployment target and secret source. Store a secure backup of it; later
 runs reuse it. No permanent Appwrite application API key is needed. The helper
@@ -104,11 +113,11 @@ uv run --project services/backend playwright install chromium
 uv run --project services/backend python scripts/deploy_appwrite.py verify --paused --site-url https://calls.yousufricemill.com
 ```
 
-## 5. Start the daily workload when quota is ready
+## 5. Start the daily workload after verification
 
 The selected model names are in `.env.appwrite-production.json`. Confirm they
-remain `gemini-3.5-transcribe` and `gemini-3.8-flash`, and that the configured
-Gemini project has paid quota. Then run:
+remain `gemini-3.5-transcribe` and `gemini-3.8-flash`, and that the paid Gemini
+key entered during `configure` has usable quota. Then run:
 
 ```sh
 uv run --project services/backend python scripts/deploy_appwrite.py deploy

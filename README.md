@@ -22,10 +22,16 @@ missed discovery, interrupted jobs and expired leases automatically.
 
 ### Production quick start
 
-Create a project on the existing Appwrite 2.3 server, copy its project ID, then
-clone this repository and run from its root:
+This is a developer handoff. The receiving developer creates a **new project** on
+the existing production Appwrite 2.3 server and deploys it from this repository.
+They use the same Jazz UAN/password and the selected model names. The only
+credential change is a **paid Gemini API key**, entered privately during
+`configure`; none of these credentials are in Git. After creating the project,
+the developer copies its ID, clones the repository and runs from its root:
 
 ```sh
+git clone https://github.com/MuhammadWahajYousufzai/call-grader.git
+cd call-grader
 appwrite login --endpoint https://yousufricemill.com/v1
 uv run --project services/backend python scripts/deploy_appwrite.py configure --project-id YOUR_PRODUCTION_PROJECT_ID
 uv run --project services/backend python scripts/deploy_appwrite.py deploy --paused

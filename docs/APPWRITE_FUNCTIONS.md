@@ -116,7 +116,8 @@ schedules paused while deploying, sets role-specific variables without replacing
 unrelated variables, provisions the database and private bucket through the
 bootstrap Function, checks pipeline imports and Chromium/FFmpeg/FFprobe inside every pipeline Function,
 verifies API readiness, and builds the Site. The example leaves all four workload
-Functions disabled. Once paid Gemini quota is ready, rerun `deploy` without
+Functions disabled. After confirming the paid Gemini key supplied during
+`configure` has quota, rerun `deploy` without
 `--paused` to enable schedules and start catch-up. A runtime startup timeout is
 retried twice; application errors stop deployment with schedules paused. Old
 inactive deployments have a seven-day retention setting. Bootstrap has no schedule and loses its
