@@ -8,6 +8,9 @@ Roman Urdu → AI grading/coaching → daily dashboard. The owner reviews result
 **Appwrite Functions + Appwrite Sites in one project.** Appwrite provides
 schedules, accounts, database, private storage and hosting. No separate API,
 worker or scheduler containers are deployed by this repository.
+The checked local stack uses Appwrite Server **2.3.0** and Appwrite CLI
+**27.3.0**; the receiving developer should use Appwrite Server **2.3.x** and CLI
+**27.3.0** for the documented production deployment.
 
 - [Production checklist and commands](docs/PRODUCTION_SETUP.md)
 - [Functions, schedules and GitHub settings](docs/APPWRITE_FUNCTIONS.md)

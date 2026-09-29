@@ -69,6 +69,9 @@ We used `gemini-2.5-flash` for Roman Urdu, grading and coaching on the saved
 59.04-second, 16-turn transcript. All three phases succeeded without another
 audio transcription. The resulting score was 8.8/10. This is a functional model
 check; the grader itself flagged incorrect speaker attribution in segments 10–13.
+The speaker roles came from transcription and the application's role-assignment
+heuristic, so this observation does not establish that 2.5 Flash caused the
+attribution error.
 The score should not be treated as verified until a human checks roles, transcript
 words and grading against the recording. The test used repository bootstrap business rules, which
 were confirmed identical to the five current local Appwrite rules. Local Appwrite

@@ -15,6 +15,15 @@ when the first deployment prompts for it. No later free-key swap is needed.
 
 ## 1. Prepare the project and server
 
+The deployment was prepared and checked locally with **Appwrite Server 2.3.0**
+(`appwrite/appwrite:2.3.0`) and **Appwrite CLI 27.3.0**. Use Appwrite Server
+**2.3.x** on the production VPS and CLI **27.3.0** for the documented commands.
+The Functions require the `python-3.12` runtime and a 900-second timeout; the
+Site requires the `node-22` build runtime. `uv` is needed on the developer's
+computer to run the deployment helper. Appwrite itself runs in the existing VPS
+Docker stack; this repository deploys its application as Appwrite Functions and
+an Appwrite Site, with no separate application containers.
+
 In the Appwrite Console at `https://yousufricemill.com`, create a production
 project and copy its **project ID**. The project is separate from the linked local
 development project in `appwrite.config.json`. Confirm that Functions and Sites
